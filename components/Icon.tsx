@@ -1,0 +1,59 @@
+import React from 'react';
+
+/**
+ * Inline SVG icon set, matching mprnt-qr's approach of hand-rolled paths rather
+ * than an icon dependency. Everything is `currentColor` so icons inherit the
+ * surrounding text colour in both themes.
+ *
+ * Icons are always decorative here — the label sits next to them — so they are
+ * hidden from assistive technology.
+ */
+export const icons = {
+  home: 'M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10',
+  receipt:
+    'M9 14h6m-6-4h6m-7 8l-2 2V5a2 2 0 012-2h8a2 2 0 012 2v15l-2-2-2 2-2-2-2 2z',
+  printer:
+    'M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a1 1 0 001-1v-4H8v4a1 1 0 001 1zM7 9V4a1 1 0 011-1h8a1 1 0 011 1v5',
+  alert:
+    'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z',
+  tag: 'M7 7h.01M7 3h5a1.99 1.99 0 011.41.59l7 7a2 2 0 010 2.82l-5 5a2 2 0 01-2.82 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z',
+  users:
+    'M17 20h5v-2a3 3 0 00-5.36-1.86M17 20H7m10 0v-2c0-.66-.13-1.3-.36-1.86m0 0a5 5 0 00-9.28 0M7 20H2v-2a3 3 0 015.36-1.86M7 20v-2c0-.66.13-1.3.36-1.86m0 0a5 5 0 019.28 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+  building:
+    'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  shield: 'M9 12l2 2 4-4m5.62-1.38A11.96 11.96 0 0112 2.94a11.96 11.96 0 01-8.62 3.68A12 12 0 0012 22a12 12 0 008.62-13.38z',
+  cog: 'M10.32 4.32a1 1 0 01.99-.82h1.38a1 1 0 01.99.82l.2 1.2a6.9 6.9 0 011.6.93l1.14-.44a1 1 0 011.22.44l.7 1.2a1 1 0 01-.23 1.28l-.94.76a6.9 6.9 0 010 1.86l.94.76a1 1 0 01.23 1.28l-.7 1.2a1 1 0 01-1.22.44l-1.14-.44a6.9 6.9 0 01-1.6.93l-.2 1.2a1 1 0 01-.99.82h-1.38a1 1 0 01-.99-.82l-.2-1.2a6.9 6.9 0 01-1.6-.93l-1.14.44a1 1 0 01-1.22-.44l-.7-1.2a1 1 0 01.23-1.28l.94-.76a6.9 6.9 0 010-1.86l-.94-.76a1 1 0 01-.23-1.28l.7-1.2a1 1 0 011.22-.44l1.14.44a6.9 6.9 0 011.6-.93zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  logout: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  download: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
+  plus: 'M12 4v16m8-8H4',
+  chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+  clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  check: 'M5 13l4 4L19 7',
+  search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  sun: 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z',
+  moon: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z',
+  key: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
+  inbox: 'M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4',
+};
+
+export function Icon({
+  name,
+  className = 'w-5 h-5',
+}: {
+  name: keyof typeof icons;
+  className?: string;
+}) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icons[name]} />
+    </svg>
+  );
+}

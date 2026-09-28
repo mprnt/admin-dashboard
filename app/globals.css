@@ -1,0 +1,269 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   MPRNT ADMIN THEME
+   Token values are kept identical to mprnt-qr/app/globals.css so
+   both apps stay visually in sync. Change brand colours in both.
+   ============================================================ */
+
+:root {
+  /* PRIMARY brand color - dark green for sustainability + trust */
+  --color-primary: 34 107 69;
+  --color-primary-dark: 25 80 50;
+  --color-primary-light: 52 150 94;
+
+  /* SECONDARY brand color - sage green for balance */
+  --color-secondary: 74 140 107;
+  --color-secondary-dark: 55 105 80;
+  --color-secondary-light: 110 170 140;
+
+  /* Light mode */
+  --color-surface: 252 252 250;
+  --color-surface-secondary: 245 245 242;
+  --color-border: 225 221 216;
+  --color-text: 26 26 26;
+  --color-text-muted: 106 106 106;
+
+  /* Status.
+     These are used as TEXT on a surface, not just as fills, so each one is
+     chosen to clear WCAG AA (4.5:1). The bright green/amber from the kiosk
+     flow measure ~2.2:1 on an off-white background — fine behind a solid
+     fill, unreadable as a label. */
+  --color-success: 21 128 61;
+  --color-error: 200 30 30;
+  --color-warning: 168 75 10;
+  --color-info: 29 100 210;
+
+  /* Primary, adjusted for legibility as text on a surface. Fills keep using
+     --color-primary so buttons stay brand-accurate. */
+  --color-accent: 27 87 56;
+
+  /* Admin chrome — the density this app needs beyond the kiosk flow */
+  --sidebar-width: 15rem;
+  --header-height: 3.5rem;
+  --mobile-nav-height: 4rem;
+}
+
+[data-theme='dark'] {
+  --color-surface: 20 20 18;
+  --color-surface-secondary: 35 34 31;
+  --color-border: 65 62 58;
+  --color-text: 248 247 245;
+  --color-text-muted: 160 158 155;
+
+  --color-primary-light: 80 190 130;
+  --color-secondary-light: 130 200 160;
+
+  /* The dark brand green measures 2.86:1 on the dark surface — illegible as
+     text. Links, active navigation and emphasis use this lighter variant
+     instead; solid primary fills are unaffected. */
+  --color-accent: 80 190 130;
+
+  /* Status colours lifted for contrast against the dark surface */
+  --color-success: 74 222 128;
+  --color-error: 248 113 113;
+  --color-warning: 251 191 36;
+  --color-info: 96 165 250;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Respects the iOS safe area so the mobile tab bar never sits under the
+     home indicator. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  color: rgb(var(--color-text));
+  background: rgb(var(--color-surface-secondary));
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  touch-action: manipulation;
+}
+
+/* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
+
+/* A single, consistent focus ring. Never remove it without replacing it —
+   keyboard users navigate this entire dashboard by focus. */
+:focus-visible {
+  outline: 2px solid rgb(var(--color-primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+[data-theme='dark'] :focus-visible {
+  outline-color: rgb(var(--color-primary-light));
+}
+
+/* Skip link: first tab stop on every page, hidden until focused. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  background: rgb(var(--color-primary));
+  color: white;
+  border-radius: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* Visually hidden but announced by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Honour the OS "reduce motion" setting: animation is decoration here, and
+   for some people it causes nausea or migraine. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-text: 0 0 0;
+    --color-text-muted: 60 60 60;
+    --color-border: 120 120 120;
+  }
+  [data-theme='dark'] {
+    --color-text: 255 255 255;
+    --color-text-muted: 210 210 210;
+    --color-border: 150 150 150;
+  }
+}
+
+/* ============================================================
+   MOTION
+   ============================================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -600px 0;
+  }
+  100% {
+    background-position: 600px 0;
+  }
+}
+
+.animate-in {
+  opacity: 0;
+  animation: fadeInUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.stagger-1 {
+  animation-delay: 0.04s;
+}
+.stagger-2 {
+  animation-delay: 0.08s;
+}
+.stagger-3 {
+  animation-delay: 0.12s;
+}
+.stagger-4 {
+  animation-delay: 0.16s;
+}
+
+/* Loading placeholder that matches the surface in both themes. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-border) / 0.35) 25%,
+    rgb(var(--color-border) / 0.6) 37%,
+    rgb(var(--color-border) / 0.35) 63%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 0.5rem;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+/* ============================================================
+   LAYOUT HELPERS
+   ============================================================ */
+
+.min-h-dvh {
+  min-height: 100dvh;
+}
+
+/* Horizontally scrollable regions (wide tables) keep momentum on iOS and
+   don't trap the page scroll. */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.scroll-x::-webkit-scrollbar {
+  height: 6px;
+}
+.scroll-x::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-border));
+  border-radius: 3px;
+}
+
+/* Tabular figures so currency columns line up and don't jitter as they update. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

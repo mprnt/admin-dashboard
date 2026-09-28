@@ -1,0 +1,112 @@
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { parseProfile, type AdminProfile } from '@/lib/profile';
+
+export type { AdminProfile };
+export { parseProfile };
+
+/**
+ * Token handling for the admin dashboard.
+ *
+ * Both tokens live in httpOnly cookies and are attached by route handlers on
+ * the server. Browser JavaScript never sees either one, so an XSS bug in this
+ * dashboard cannot exfiltrate a credential that reads every shop's revenue.
+ *
+ * That is why the app talks to /api/proxy/* rather than to the backend
+ * directly: the proxy is where the Bearer header gets added.
+ */
+
+export const ACCESS_COOKIE = 'mprnt_at';
+export const REFRESH_COOKIE = 'mprnt_rt';
+export const PROFILE_COOKIE = 'mprnt_profile';
+
+export const API_BASE =
+  process.env.MPRNT_API_URL?.replace(/\/$/, '') || 'http://localhost:3000/api/v1';
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+const baseCookie = {
+  httpOnly: true,
+  // Only sent over HTTPS in production; plain http is needed for local dev.
+  secure: isProduction,
+  // 'lax' still sends the cookie on top-level navigation, which is what makes
+  // a bookmarked dashboard URL work, while blocking cross-site form posts.
+  sameSite: 'lax' as const,
+  path: '/',
+};
+
+
+export function setAuthCookies(
+  res: NextResponse,
+  tokens: { accessToken: string; refreshToken: string; expiresIn: number },
+  profile: AdminProfile
+): void {
+  res.cookies.set(ACCESS_COOKIE, tokens.accessToken, {
+    ...baseCookie,
+    maxAge: tokens.expiresIn,
+  });
+
+  res.cookies.set(REFRESH_COOKIE, tokens.refreshToken, {
+    ...baseCookie,
+    maxAge: 7 * 24 * 60 * 60,
+  });
+
+  // Readable by the client so the UI can render the right navigation without a
+  // round trip. Deliberately NOT httpOnly, and deliberately carries no secret:
+  // it is a display hint. Every actual permission check happens on the server.
+  // Not pre-encoded: Next's cookie API percent-encodes on write and decodes on
+  // read. Encoding here too would double-encode, and a single decode on the
+  // client would then leave escaped JSON that cannot be parsed.
+  res.cookies.set(PROFILE_COOKIE, JSON.stringify(profile), {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60,
+  });
+}
+
+export function clearAuthCookies(res: NextResponse): void {
+  for (const name of [ACCESS_COOKIE, REFRESH_COOKIE, PROFILE_COOKIE]) {
+    res.cookies.set(name, '', { ...baseCookie, httpOnly: name !== PROFILE_COOKIE, maxAge: 0 });
+  }
+}
+
+export function getAccessToken(): string | undefined {
+  return cookies().get(ACCESS_COOKIE)?.value;
+}
+
+export function getRefreshToken(): string | undefined {
+  return cookies().get(REFRESH_COOKIE)?.value;
+}
+
+export function getProfile(): AdminProfile | null {
+  return parseProfile(cookies().get(PROFILE_COOKIE)?.value);
+}
+
+/**
+ * Tolerates a value that is either plain JSON or percent-encoded, so a cookie
+ * written by an older build still parses instead of signing the person out.
+ */
+
+
+/**
+ * Server-side fetch against the backend with the access token attached.
+ */
+export async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+  token?: string
+): Promise<Response> {
+  const accessToken = token ?? getAccessToken();
+
+  return fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(init.headers || {}),
+    },
+    cache: 'no-store',
+  });
+}
