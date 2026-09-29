@@ -77,7 +77,17 @@ async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
       cache: 'no-store',
     });
 
-  let upstream = await call(getAccessToken());
+  let upstream: Response;
+  try {
+    upstream = await call(getAccessToken());
+  } catch {
+    console.error(`[proxy] Cannot reach the backend at ${API_BASE}`);
+    return NextResponse.json(
+      { message: 'Cannot reach the MPrnt backend. Is it running?' },
+      { status: 503 }
+    );
+  }
+
   let refreshed: Awaited<ReturnType<typeof refreshTokens>> = null;
 
   // One transparent retry. Only on 401, and only once, so an endpoint that

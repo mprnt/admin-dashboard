@@ -38,7 +38,9 @@ function LoginForm() {
       if (!res.ok) {
         // Distinct guidance per failure mode: a locked account and a wrong
         // password need different actions from the person reading this.
-        if (res.status === 423) {
+        if (res.status === 503) {
+          setError(body.message || 'The MPrnt backend is not reachable right now.');
+        } else if (res.status === 423) {
           setError('Too many failed attempts. This account is locked for 15 minutes.');
         } else if (res.status === 429) {
           setError('Too many sign-in attempts. Please wait a few minutes.');

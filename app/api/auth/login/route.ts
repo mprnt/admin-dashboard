@@ -8,12 +8,30 @@ import { API_BASE, setAuthCookies, AdminProfile } from '@/lib/session';
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as { email?: string; password?: string };
 
-  const upstream = await fetch(`${API_BASE}/admin/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: body.email, password: body.password }),
-    cache: 'no-store',
-  });
+  let upstream: Response;
+
+  try {
+    upstream = await fetch(`${API_BASE}/admin/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: body.email, password: body.password }),
+      cache: 'no-store',
+    });
+  } catch {
+    // The backend is unreachable — wrong MPRNT_API_URL, or it simply is not
+    // running. Without this the fetch throws, Next returns a bare 500, and the
+    // sign-in form tells the person their password is wrong, which sends them
+    // hunting for a problem that does not exist.
+    console.error(`[auth] Cannot reach the backend at ${API_BASE}`);
+    return NextResponse.json(
+      {
+        message:
+          'Cannot reach the MPrnt backend. Check that it is running and that ' +
+          'MPRNT_API_URL points at it.',
+      },
+      { status: 503 }
+    );
+  }
 
   const data = (await upstream.json().catch(() => ({}))) as {
     status?: string;
