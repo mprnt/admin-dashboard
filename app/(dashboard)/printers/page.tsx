@@ -98,7 +98,12 @@ export default function PrintersPage() {
 
       <Card>
         <CardHeader title="Kiosks" subtitle={`${kiosks.data?.count ?? 0} total`} />
-        {kiosks.loading ? (
+        {kiosks.error ? (
+          // Previously this fell through to the empty state, so a failed
+          // request read as "you have no kiosks" — which sent the reader
+          // looking for a configuration problem instead of an outage.
+          <ErrorState message={kiosks.error} onRetry={kiosks.reload} />
+        ) : kiosks.loading ? (
           <SkeletonRows rows={2} />
         ) : kiosks.data?.kiosks.length ? (
           <ul className="divide-y divide-border">

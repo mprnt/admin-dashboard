@@ -20,8 +20,28 @@ export const ACCESS_COOKIE = 'mprnt_at';
 export const REFRESH_COOKIE = 'mprnt_rt';
 export const PROFILE_COOKIE = 'mprnt_profile';
 
-export const API_BASE =
-  process.env.MPRNT_API_URL?.replace(/\/$/, '') || 'http://localhost:3000/api/v1';
+function resolveApiBase(): string {
+  const raw = (process.env.MPRNT_API_URL || 'http://localhost:3000/api/v1').replace(/\/$/, '');
+
+  // A plain-http remote host is almost always a typo, and it fails in a way
+  // that is hard to read: the host 301s to https, fetch downgrades POST to GET
+  // and drops the body, and the request lands on whatever GET route matches —
+  // for /admin/auth/login that is the auth middleware, so a sign-in attempt
+  // comes back "Authentication required" instead of anything about the URL.
+  if (raw.startsWith('http://')) {
+    const host = raw.slice('http://'.length).split('/')[0].split(':')[0];
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+
+    if (!isLocal) {
+      console.warn(`[config] MPRNT_API_URL is http:// for a remote host; upgrading to https:// — ${host}`);
+      return 'https://' + raw.slice('http://'.length);
+    }
+  }
+
+  return raw;
+}
+
+export const API_BASE = resolveApiBase();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
