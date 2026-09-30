@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { OrgSwitcher, ScopeBanner } from '@/components/OrgSwitcher';
 import type { AdminProfile } from '@/lib/profile';
 
 /**
@@ -34,7 +35,7 @@ const NAV: NavItem[] = [
   { href: '/attention', label: 'Attention', icon: 'alert', permission: 'reports:read', primary: true },
   { href: '/pricing', label: 'Pricing', icon: 'tag', permission: 'pricing:read' },
   { href: '/staff', label: 'Staff', icon: 'users', permission: 'staff:read' },
-  { href: '/organizations', label: 'Organizations', icon: 'building', superAdminOnly: true },
+  { href: '/organizations', label: 'Shops', icon: 'building', superAdminOnly: true },
   { href: '/audit', label: 'Audit log', icon: 'shield', permission: 'audit:read' },
 ];
 
@@ -152,14 +153,19 @@ export function Shell({
 
           <div className="flex items-center gap-1 sm:gap-2">
             {profile.role === 'super_admin' && (
-              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-accent text-xs font-semibold">
-                Super admin
-              </span>
+              <>
+                <OrgSwitcher />
+                <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-accent text-xs font-semibold">
+                  Super admin
+                </span>
+              </>
             )}
             <ThemeToggle />
           </div>
         </div>
       </header>
+
+      <ScopeBanner />
 
       {/* ---------------- Main ---------------- */}
       <main

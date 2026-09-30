@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { api, ApiError } from '@/lib/api';
+import { useScope, withScope } from '@/lib/scope';
 
 /**
  * Minimal data-fetching hook.
@@ -10,15 +11,26 @@ import { api, ApiError } from '@/lib/api';
  * loading state and a retry, and a cache layer would be one more thing to reason
  * about for no benefit at this size. Swap it later if list invalidation gets
  * complicated.
+ *
+ * Requests follow the super admin's shop switcher automatically. Pass
+ * `{ unscoped: true }` for views that are inherently cross-shop, such as the
+ * shop comparison table.
  */
-export function useApi<T>(path: string | null, deps: unknown[] = []) {
+export function useApi<T>(
+  path: string | null,
+  deps: unknown[] = [],
+  options: { unscoped?: boolean } = {}
+) {
+  const { org } = useScope();
+  const scopedPath = path && !options.unscoped ? withScope(path, org?.id) : path;
+
   const [data, setData] = React.useState<T | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(Boolean(path));
   const [nonce, setNonce] = React.useState(0);
 
   React.useEffect(() => {
-    if (!path) {
+    if (!scopedPath) {
       setLoading(false);
       return;
     }
@@ -28,7 +40,7 @@ export function useApi<T>(path: string | null, deps: unknown[] = []) {
     setError(null);
 
     api
-      .get<T>(path)
+      .get<T>(scopedPath)
       .then((result) => {
         // A response that arrives after the filters changed would overwrite
         // newer data, so late results from a stale request are dropped.
@@ -46,7 +58,7 @@ export function useApi<T>(path: string | null, deps: unknown[] = []) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, nonce, ...deps]);
+  }, [scopedPath, nonce, ...deps]);
 
   return { data, error, loading, reload: () => setNonce((n) => n + 1) };
 }

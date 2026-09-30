@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Shell } from '@/components/Shell';
+import { ScopeProvider } from '@/lib/scope';
 import { getProfile } from '@/lib/session';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -9,5 +10,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // exists but cannot be parsed.
   if (!profile) redirect('/login');
 
-  return <Shell profile={profile}>{children}</Shell>;
+  return (
+    <ScopeProvider enabled={profile.role === 'super_admin'}>
+      <Shell profile={profile}>{children}</Shell>
+    </ScopeProvider>
+  );
 }

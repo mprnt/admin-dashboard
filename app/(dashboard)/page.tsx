@@ -3,7 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { useApi } from '@/lib/useApi';
-import { buildQuery, type Period, type Range, type Summary, type SeriesPoint } from '@/lib/api';
+import {
+  buildQuery,
+  type Comparison,
+  type Period,
+  type Range,
+  type Summary,
+  type SeriesPoint,
+} from '@/lib/api';
 import { currency, number, duration } from '@/lib/format';
 import { Card, CardHeader, Stat, ErrorState, EmptyState } from '@/components/ui';
 import { PeriodFilter } from '@/components/PeriodFilter';
@@ -14,7 +21,7 @@ import type { AttentionRow, PrinterRow } from '@/lib/api';
 export default function OverviewPage() {
   const [period, setPeriod] = React.useState<Period>('month');
 
-  const summary = useApi<{ range: Range; summary: Summary }>(
+  const summary = useApi<{ range: Range; summary: Summary; comparison: Comparison | null }>(
     `/reports/summary${buildQuery({ period })}`
   );
   const series = useApi<{ range: Range; bucket: Period; series: SeriesPoint[] }>(
@@ -24,6 +31,8 @@ export default function OverviewPage() {
   const printers = useApi<{ count: number; printers: PrinterRow[] }>('/printers');
 
   const s = summary.data?.summary;
+  const cmp = summary.data?.comparison ?? null;
+  const trendLabel = TREND_LABEL[period];
   const offline = printers.data?.printers.filter((p) => p.status === 'offline').length ?? 0;
   const needsAttention = attention.data?.count ?? 0;
 
@@ -98,6 +107,15 @@ export default function OverviewPage() {
             hint={s ? `${number(s.paidJobs)} paid jobs` : undefined}
             icon={<Icon name="chart" className="w-4 h-4" />}
             loading={summary.loading}
+            trend={
+              cmp
+                ? {
+                    pct: cmp.change.revenuePct,
+                    hasCurrent: cmp.current.revenue > 0,
+                    label: trendLabel,
+                  }
+                : undefined
+            }
           />
           <Stat
             label="Pages printed"
@@ -117,6 +135,15 @@ export default function OverviewPage() {
             tone={s && s.fulfilmentRate !== null && s.fulfilmentRate < 90 ? 'warning' : 'success'}
             icon={<Icon name="check" className="w-4 h-4" />}
             loading={summary.loading}
+            trend={
+              cmp
+                ? {
+                    pct: pctChange(cmp.current.completedJobs, cmp.previous.completedJobs),
+                    hasCurrent: cmp.current.completedJobs > 0,
+                    label: trendLabel,
+                  }
+                : undefined
+            }
           />
           <Stat
             label="Failed"
@@ -125,6 +152,17 @@ export default function OverviewPage() {
             tone={s && s.failedJobs > 0 ? 'error' : 'default'}
             icon={<Icon name="alert" className="w-4 h-4" />}
             loading={summary.loading}
+            trend={
+              cmp
+                ? {
+                    pct: pctChange(cmp.current.failedJobs, cmp.previous.failedJobs),
+                    hasCurrent: cmp.current.failedJobs > 0,
+                    // More failures is worse, so an increase reads red.
+                    invert: true,
+                    label: trendLabel,
+                  }
+                : undefined
+            }
           />
         </div>
       )}
@@ -219,4 +257,21 @@ function Row({ label, value }: { label: string; value: string }) {
 function rangeLabel(range?: Range): string | undefined {
   if (!range) return undefined;
   return `${range.from} to ${range.to}`;
+}
+
+/**
+ * The comparison window is like-for-like: this period so far against the same
+ * span of the previous one. The wording says so, because "vs last month" would
+ * suggest the whole of last month.
+ */
+const TREND_LABEL: Record<Period, string> = {
+  day: 'vs this time yesterday',
+  week: 'vs this point last week',
+  month: 'vs this point last month',
+  year: 'vs this point last year',
+};
+
+function pctChange(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
 }

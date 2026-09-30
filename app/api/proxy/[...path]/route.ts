@@ -7,6 +7,7 @@ import {
   clearAuthCookies,
   AdminProfile,
   getProfile,
+  relayHeaders,
 } from '@/lib/session';
 
 /**
@@ -25,7 +26,7 @@ import {
 
 const ALLOWED_PREFIX = 'admin/';
 
-async function refreshTokens(): Promise<{
+async function refreshTokens(req: NextRequest): Promise<{
   tokens: { accessToken: string; refreshToken: string; expiresIn: number };
   profile: AdminProfile;
 } | null> {
@@ -34,7 +35,7 @@ async function refreshTokens(): Promise<{
 
   const res = await fetch(`${API_BASE}/admin/auth/refresh`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...relayHeaders(req) },
     body: JSON.stringify({ refreshToken }),
     cache: 'no-store',
   });
@@ -72,6 +73,7 @@ async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
       headers: {
         'Content-Type': req.headers.get('content-type') || 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...relayHeaders(req),
       },
       body: rawBody,
       cache: 'no-store',
@@ -93,7 +95,7 @@ async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
   // One transparent retry. Only on 401, and only once, so an endpoint that
   // genuinely rejects this admin does not loop.
   if (upstream.status === 401) {
-    refreshed = await refreshTokens();
+    refreshed = await refreshTokens(req);
 
     if (!refreshed) {
       const res = NextResponse.json({ message: 'Session expired' }, { status: 401 });

@@ -127,7 +127,9 @@ const STATUS_TONE: Record<string, string> = {
   suspended: 'bg-error/10 text-error border-error/30',
   cancelled: 'bg-text-muted/10 text-text-muted border-border',
   unpaid: 'bg-text-muted/10 text-text-muted border-border',
-  maintenance: 'bg-text-muted/10 text-text-muted border-border',
+  maintenance: 'bg-warning/10 text-warning border-warning/30',
+  inactive: 'bg-text-muted/10 text-text-muted border-border',
+  revoked: 'bg-error/10 text-error border-error/30',
 };
 
 export function StatusPill({ status, className = '' }: { status: string; className?: string }) {
@@ -155,6 +157,7 @@ export function Stat({
   icon,
   tone = 'default',
   loading = false,
+  trend,
 }: {
   label: string;
   value: string;
@@ -162,6 +165,7 @@ export function Stat({
   icon?: React.ReactNode;
   tone?: 'default' | 'success' | 'warning' | 'error';
   loading?: boolean;
+  trend?: TrendProps;
 }) {
   const tones: Record<string, string> = {
     default: 'text-text',
@@ -185,8 +189,59 @@ export function Stat({
       ) : (
         <p className={`text-2xl sm:text-3xl font-bold mt-1.5 tabular ${tones[tone]}`}>{value}</p>
       )}
+      {trend && !loading && <Trend {...trend} />}
       {hint && !loading && <p className="text-xs text-text-muted mt-1">{hint}</p>}
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Trend
+// ---------------------------------------------------------------------------
+
+export interface TrendProps {
+  /** Percentage change, or null when there was nothing to compare against. */
+  pct: number | null;
+  /** Whether there is any current activity; decides between "new" and "—". */
+  hasCurrent?: boolean;
+  /** For metrics where going up is bad, such as failed jobs. */
+  invert?: boolean;
+  /** Screen-reader and tooltip wording, e.g. "vs the same point last month". */
+  label: string;
+}
+
+/**
+ * Period-over-period change.
+ *
+ * Direction is carried by an arrow and the words "up"/"down" for assistive
+ * technology, not by colour alone, so it reads correctly in greyscale and for
+ * colour-blind users.
+ */
+export function Trend({ pct, hasCurrent = true, invert = false, label }: TrendProps) {
+  if (pct === null) {
+    return (
+      <p className="text-xs text-text-muted mt-1" title={label}>
+        {hasCurrent ? 'New this period' : 'No change'}
+      </p>
+    );
+  }
+
+  const flat = Math.abs(pct) < 0.5;
+  const up = pct > 0;
+  const good = flat ? null : invert ? !up : up;
+  const tone = good === null ? 'text-text-muted' : good ? 'text-success' : 'text-error';
+
+  return (
+    // The label sits on its own line: on a two-column phone grid there is no
+    // room beside the figure, and a truncated "vs this p…" says nothing.
+    <p className="text-xs mt-1" title={label}>
+      <span className={`font-semibold tabular whitespace-nowrap ${tone}`}>
+        <span aria-hidden="true">{flat ? '→' : up ? '↑' : '↓'}</span>{' '}
+        <span className="sr-only">{flat ? 'Unchanged' : up ? 'Up' : 'Down'} </span>
+        {flat ? '0%' : `${Math.abs(pct)}%`}
+      </span>{' '}
+      <span className="text-text-muted">{label}</span>
+    </p>
   );
 }
 

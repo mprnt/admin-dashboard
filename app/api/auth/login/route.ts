@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_BASE, setAuthCookies, AdminProfile } from '@/lib/session';
+import { API_BASE, setAuthCookies, AdminProfile, relayHeaders } from '@/lib/session';
 
 /**
  * Signs in against the backend and stores both tokens in httpOnly cookies.
@@ -13,7 +13,9 @@ export async function POST(req: NextRequest) {
   try {
     upstream = await fetch(`${API_BASE}/admin/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // The real client IP matters most here: it is what the login rate limit
+      // and the failed-sign-in audit trail key on.
+      headers: { 'Content-Type': 'application/json', ...relayHeaders(req) },
       body: JSON.stringify({ email: body.email, password: body.password }),
       cache: 'no-store',
     });
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const me = await fetch(`${API_BASE}/admin/auth/me`, {
-      headers: { Authorization: `Bearer ${data.data.accessToken}` },
+      headers: { Authorization: `Bearer ${data.data.accessToken}`, ...relayHeaders(req) },
       cache: 'no-store',
     });
     if (me.ok) {

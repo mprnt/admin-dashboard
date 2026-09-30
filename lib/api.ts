@@ -121,8 +121,20 @@ export interface SessionRow {
 export interface PrinterRow {
   printerId: string;
   name: string;
+  /** 'revoked' overrides whatever the printer last reported. */
   status: string;
-  kiosk: { code: string; name: string };
+  kiosk: { id: string; code: string; name: string };
+  organization: { id: string; name: string } | null;
+  enrollment: {
+    /** Non-secret fragment of the key, for matching a Pi's config to this row. */
+    keyPrefix: string | null;
+    keyIssuedAt: string | null;
+    enrolled: boolean;
+    revokedAt: string | null;
+    lastSeenIp: string | null;
+  };
+  /** No heartbeat for longer than the configured warning threshold. */
+  silent: boolean;
   lastHeartbeat: string | null;
   secondsSinceHeartbeat: number | null;
   activeJobs: number;
@@ -187,12 +199,51 @@ export interface AdminUserRow {
 export interface AuditRow {
   id: string;
   action: string;
+  /** Who acted: the platform (super admin / system) or the shop's own staff. */
+  actorScope: 'platform' | 'shop';
   resourceType: string | null;
   resourceId: string | null;
   details: Record<string, unknown> | null;
   ipAddress: string | null;
   createdAt: string;
-  actor: { email: string; name: string | null } | null;
+  organization: { id: string; name: string | null } | null;
+  actor: { email: string; name: string | null; role: string } | null;
+}
+
+export interface WindowTotals {
+  revenue: number;
+  paidJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  pages: number;
+}
+
+/** This period against the same span of the previous one. */
+export interface Comparison {
+  current: WindowTotals;
+  previous: WindowTotals;
+  /** null when the previous window was zero: growth from nothing is undefined. */
+  change: { revenuePct: number | null; paidJobsPct: number | null; pagesPct: number | null };
+}
+
+export type ShopActivity = 'active' | 'inactive' | 'new' | 'suspended';
+
+export interface OrgComparisonRow extends Comparison {
+  organization: { id: string; name: string; slug: string; status: string; timezone: string };
+  fulfilmentRate: number | null;
+  kiosks: number;
+  printersOnline: number;
+  printersTotal: number;
+  lastPaidAt: string | null;
+  daysSinceLastPaid: number | null;
+  activity: ShopActivity;
+}
+
+export interface OrgComparison {
+  period: Period;
+  inactiveAfterDays: number;
+  organizations: OrgComparisonRow[];
+  totals: Comparison;
 }
 
 export interface PriceListRow {

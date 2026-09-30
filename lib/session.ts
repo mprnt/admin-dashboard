@@ -130,3 +130,33 @@ export async function apiFetch(
     cache: 'no-store',
   });
 }
+
+/**
+ * Headers that let the backend attribute a relayed request to the admin who
+ * made it, rather than to this server.
+ *
+ * Every admin request reaches the backend from this server, so without these
+ * the backend would record one IP for every admin in every shop — sharing one
+ * rate-limit bucket between all of them, and making the audit log's IP column
+ * meaningless. The shared secret is what lets the backend believe the claimed
+ * IP; see mprnt-backend/src/middleware/trustedProxy.ts.
+ *
+ * Client IP source: `x-real-ip`, then the first `x-forwarded-for` entry. On
+ * Vercel both are set by the platform and cannot be supplied by the browser. On
+ * another host, confirm its proxy overwrites these rather than appending to a
+ * client-supplied value.
+ */
+export function relayHeaders(req: Request): Record<string, string> {
+  const secret = process.env.MPRNT_PROXY_SECRET;
+  if (!secret) return {};
+
+  const ip =
+    req.headers.get('x-real-ip')?.trim() ||
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    '';
+
+  return {
+    'X-MPrnt-Proxy-Secret': secret,
+    ...(ip ? { 'X-MPrnt-Client-IP': ip } : {}),
+  };
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { API_BASE, clearAuthCookies, getRefreshToken } from '@/lib/session';
+import { API_BASE, clearAuthCookies, getRefreshToken, relayHeaders } from '@/lib/session';
 
-export async function POST() {
+export async function POST(req: Request) {
   const refreshToken = getRefreshToken();
 
   // Tell the backend to revoke the refresh token, then clear locally. A failure
@@ -10,7 +10,7 @@ export async function POST() {
   if (refreshToken) {
     await fetch(`${API_BASE}/admin/auth/logout`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...relayHeaders(req) },
       body: JSON.stringify({ refreshToken }),
       cache: 'no-store',
     }).catch(() => undefined);
