@@ -129,7 +129,7 @@ export default function OrganizationDetailPage() {
               <div className="skeleton h-8 w-56" />
             ) : (
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold text-text truncate">{o?.name}</h1>
+                <h1 className="page-title truncate">{o?.name}</h1>
                 {o && <StatusPill status={o.status} />}
               </div>
             )}
@@ -163,7 +163,7 @@ export default function OrganizationDetailPage() {
                       api.post(`/organizations/${o.id}/status`, {
                         status: o.status === 'active' ? 'suspended' : 'active',
                       }),
-                    o.status === 'active' ? 'Shop suspended — its staff were signed out' : 'Shop reactivated'
+                    o.status === 'active' ? 'Shop suspended - its staff were signed out' : 'Shop reactivated'
                   )
                 }
               >
@@ -176,7 +176,7 @@ export default function OrganizationDetailPage() {
                 onClick={() => {
                   if (
                     confirm(
-                      `Delete ${o.name}? Its staff are signed out and lose access. Move its kiosks elsewhere first — deletion is refused while it still has any.`
+                      `Delete ${o.name}? Its staff are signed out and lose access. Move its kiosks elsewhere first - deletion is refused while it still has any.`
                     )
                   ) {
                     void act(() => api.del(`/organizations/${o.id}`), 'Shop deleted', () =>
@@ -233,7 +233,7 @@ export default function OrganizationDetailPage() {
           />
           <Stat
             label="Fulfilment"
-            value={s?.fulfilmentRate !== null && s?.fulfilmentRate !== undefined ? `${s.fulfilmentRate}%` : '—'}
+            value={s?.fulfilmentRate !== null && s?.fulfilmentRate !== undefined ? `${s.fulfilmentRate}%` : '-'}
             hint="of paid jobs printed"
             tone={
               s && s.fulfilmentRate !== null ? (s.fulfilmentRate < 90 ? 'warning' : 'success') : 'default'

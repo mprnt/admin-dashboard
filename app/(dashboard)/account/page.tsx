@@ -51,8 +51,8 @@ function AccountContent() {
   return (
     <div className="space-y-5 max-w-xl">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-text">Account</h1>
-        <p className="text-sm text-text-muted">{profile?.email}</p>
+        <h1 className="page-title">Account</h1>
+        <p className="text-sm text-text-muted mt-1.5">{profile?.email}</p>
       </div>
 
       {isFirstSignIn && (

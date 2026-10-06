@@ -33,11 +33,11 @@ export default function PricingPage() {
   const [toast, setToast] = React.useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text">Pricing</h1>
-          <p className="text-sm text-text-muted">
+          <h1 className="page-title">Pricing</h1>
+          <p className="text-sm text-text-muted mt-1.5">
             {canWrite ? 'Rates charged to customers at each kiosk' : 'Rates that apply to your kiosks'}
           </p>
         </div>
@@ -114,7 +114,7 @@ export default function PricingPage() {
       <Card>
         <CardHeader
           title="Rate history"
-          subtitle="Published rates, newest first. Rates are never edited — a change publishes a new entry."
+          subtitle="Published rates, newest first. Rates are never edited - a change publishes a new entry."
         />
         {lists.error ? (
           <ErrorState message={lists.error} onRetry={lists.reload} />
@@ -255,7 +255,7 @@ function PublishModal({
               onChange={(e) => setKioskId(e.target.value)} className={inputClass}>
               <option value="">Select a kiosk…</option>
               {scopedKiosks.map((k) => (
-                <option key={k.id} value={k.id}>{k.kioskId} — {k.name}</option>
+                <option key={k.id} value={k.id}>{k.kioskId} - {k.name}</option>
               ))}
             </select>
           </Field>
@@ -274,7 +274,7 @@ function PublishModal({
 
         <p className="text-xs text-text-muted">
           Takes effect immediately for new quotes. Jobs already priced keep the rate they were
-          quoted — existing customers are never re-charged.
+          quoted - existing customers are never re-charged.
         </p>
 
         <div className="flex gap-2">

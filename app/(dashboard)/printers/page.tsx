@@ -107,11 +107,11 @@ export default function PrintersPage() {
   const unenrolledKiosks = (kiosks.data?.kiosks ?? []).filter((k) => k.printersTotal === 0);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text">Printers & kiosks</h1>
-          <p className="text-sm text-text-muted">
+          <h1 className="page-title">Printers & kiosks</h1>
+          <p className="text-sm text-text-muted mt-1.5">
             Live status of every Raspberry Pi{showShop ? ' across all shops' : ''}
           </p>
         </div>
@@ -148,7 +148,7 @@ export default function PrintersPage() {
                 printer
               </p>
               <p className="text-xs text-text-muted mt-0.5">
-                {unenrolledKiosks.map((k) => k.kioskId).join(', ')} — customers can pay there, but
+                {unenrolledKiosks.map((k) => k.kioskId).join(', ')} - customers can pay there, but
                 nothing will print.
               </p>
             </Card>
@@ -203,7 +203,7 @@ export default function PrintersPage() {
                       label="Last heartbeat"
                       value={
                         revoked
-                          ? '—'
+                          ? '-'
                           : p.secondsSinceHeartbeat !== null
                             ? relativeAge(p.secondsSinceHeartbeat)
                             : 'never'

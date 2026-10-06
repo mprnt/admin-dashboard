@@ -67,11 +67,11 @@ export default function OrganizationsPage() {
   const trendLabel = TREND_LABEL[period];
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text">Shops</h1>
-          <p className="text-sm text-text-muted">How every shop is performing, side by side</p>
+          <h1 className="page-title">Shops</h1>
+          <p className="text-sm text-text-muted mt-1.5">How every shop is performing, side by side</p>
         </div>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Icon name="plus" className="w-4 h-4" />
@@ -173,19 +173,19 @@ export default function OrganizationsPage() {
               <table className="w-full text-sm">
                 <caption className="sr-only">Shops compared for the selected period</caption>
                 <thead>
-                  <tr className="text-left text-text-muted border-b border-border">
-                    <th scope="col" className="font-medium px-5 py-3">Shop</th>
-                    <th scope="col" className="font-medium px-5 py-3 text-right">Revenue</th>
-                    <th scope="col" className="font-medium px-5 py-3 text-right whitespace-nowrap">Paid jobs</th>
-                    <th scope="col" className="font-medium px-5 py-3 text-right">Fulfilment</th>
-                    <th scope="col" className="font-medium px-5 py-3">Printers</th>
-                    <th scope="col" className="font-medium px-5 py-3">Last sale</th>
-                    <th scope="col" className="font-medium px-5 py-3">Status</th>
+                  <tr className="text-left text-text-muted bg-surface-secondary/70 border-y border-border/70">
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Shop</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right">Revenue</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right whitespace-nowrap">Paid jobs</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right">Fulfilment</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Printers</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Last sale</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {rows.map((r) => (
-                    <tr key={r.organization.id} className="hover:bg-surface-secondary/60">
+                    <tr key={r.organization.id} className="hover:bg-surface-secondary/70 transition-colors">
                       <th scope="row" className="px-5 py-3 text-left font-normal">
                         <Link
                           href={`/organizations/${r.organization.id}`}
@@ -229,7 +229,7 @@ export default function OrganizationsPage() {
                 <li key={r.organization.id}>
                   <Link
                     href={`/organizations/${r.organization.id}`}
-                    className="block p-4 hover:bg-surface-secondary/60"
+                    className="block p-4 hover:bg-surface-secondary/70 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -292,7 +292,7 @@ const TREND_LABEL: Record<Period, string> = {
 function Delta({ pct, hasCurrent }: { pct: number | null; hasCurrent: boolean }) {
   if (pct === null) {
     return (
-      <div className="text-xs text-text-muted">{hasCurrent ? 'new' : '—'}</div>
+      <div className="text-xs text-text-muted">{hasCurrent ? 'new' : '-'}</div>
     );
   }
   const flat = Math.abs(pct) < 0.5;
@@ -308,7 +308,7 @@ function Delta({ pct, hasCurrent }: { pct: number | null; hasCurrent: boolean })
 }
 
 function Fulfilment({ rate }: { rate: number | null }) {
-  if (rate === null) return <span className="text-text-muted">—</span>;
+  if (rate === null) return <span className="text-text-muted">-</span>;
   const tone = rate >= 95 ? 'text-success' : rate >= 80 ? 'text-warning' : 'text-error';
   return <span className={`font-semibold ${tone}`}>{rate}%</span>;
 }

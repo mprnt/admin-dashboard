@@ -54,11 +54,11 @@ export default function SessionsPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text">Sessions</h1>
-          <p className="text-sm text-text-muted">
+          <h1 className="page-title">Sessions</h1>
+          <p className="text-sm text-text-muted mt-1.5">
             Every print job, what it cost and whether it printed
           </p>
         </div>
@@ -92,7 +92,7 @@ export default function SessionsPage() {
         </div>
       </div>
 
-      {/* A short note on why the document itself isn't here — otherwise the
+      {/* A short note on why the document itself isn't here - otherwise the
           first question a shop owner asks is "where's the file?". */}
       <p className="text-xs text-text-muted flex items-start gap-2">
         <Icon name="shield" className="w-4 h-4 flex-shrink-0 mt-px" />
@@ -118,19 +118,19 @@ export default function SessionsPage() {
               <table className="w-full text-sm">
                 <caption className="sr-only">Print jobs for the selected period</caption>
                 <thead>
-                  <tr className="text-left text-text-muted border-b border-border">
-                    <th scope="col" className="font-medium px-5 py-3">When</th>
-                    <th scope="col" className="font-medium px-5 py-3">Kiosk</th>
-                    <th scope="col" className="font-medium px-5 py-3">Print</th>
-                    <th scope="col" className="font-medium px-5 py-3">Printer</th>
-                    <th scope="col" className="font-medium px-5 py-3 text-right">Pages</th>
-                    <th scope="col" className="font-medium px-5 py-3 text-right">Amount</th>
-                    <th scope="col" className="font-medium px-5 py-3">Status</th>
+                  <tr className="text-left text-text-muted bg-surface-secondary/70 border-y border-border/70">
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">When</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Kiosk</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Print</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Printer</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right">Pages</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right">Amount</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {data.sessions.map((row) => (
-                    <tr key={row.jobId} className="hover:bg-surface-secondary/60">
+                    <tr key={row.jobId} className="hover:bg-surface-secondary/70 transition-colors">
                       <td className="px-5 py-3 whitespace-nowrap">
                         <div className="text-text">{dateTime(row.createdAt)}</div>
                         {row.durationSeconds !== null && (
@@ -149,7 +149,7 @@ export default function SessionsPage() {
                         <PrintSpec row={row} />
                       </td>
                       <td className="px-5 py-3 text-text-muted">
-                        {row.printer?.name ?? '—'}
+                        {row.printer?.name ?? '-'}
                       </td>
                       <td className="px-5 py-3 text-right tabular text-text">
                         {row.pages.printed}/{row.pages.sheets}

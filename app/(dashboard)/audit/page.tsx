@@ -66,10 +66,10 @@ export default function AuditPage() {
   const showShop = isSuper && !org;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-text">Audit log</h1>
-        <p className="text-sm text-text-muted">
+        <h1 className="page-title">Audit log</h1>
+        <p className="text-sm text-text-muted mt-1.5">
           {isSuper
             ? `Every administrative change${org ? ` concerning ${org.name}` : ' across all shops'}`
             : "Changes made by your shop's staff, and sign-in activity on their accounts"}
@@ -235,7 +235,7 @@ export default function AuditPage() {
 function describe(entry: AuditRow): string {
   if (entry.action === 'admin.login_failed') {
     const reason = (entry.details?.reason as string | undefined) ?? '';
-    return `Failed sign-in${REASON[reason] ? ` — ${REASON[reason]}` : ''}`;
+    return `Failed sign-in${REASON[reason] ? ` - ${REASON[reason]}` : ''}`;
   }
   if (entry.action === 'admin.account_locked') return 'Account locked after repeated failures';
   if (entry.action === 'admin.login') return 'Signed in';

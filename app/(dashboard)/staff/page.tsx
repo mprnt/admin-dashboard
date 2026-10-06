@@ -21,7 +21,7 @@ import { Icon } from '@/components/Icon';
 import { useProfile } from '@/lib/useProfile';
 
 const ROLE_HELP: Record<string, string> = {
-  owner: 'Full control of this shop: staff, refunds, reports.',
+  owner: 'Full control of this shop: staff and reports. Refunds go through MPrnt.',
   manager: 'Day-to-day operations and reports. Cannot manage staff.',
   viewer: 'Read-only access to reports.',
 };
@@ -58,11 +58,11 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-text">Staff</h1>
-          <p className="text-sm text-text-muted">
+          <h1 className="page-title">Staff</h1>
+          <p className="text-sm text-text-muted mt-1.5">
             {isSuper ? 'Everyone with dashboard access' : 'People who can access this dashboard'}
           </p>
         </div>
@@ -327,7 +327,7 @@ function CreateAdminModal({
 }
 
 /**
- * The generated password is shown exactly once — the backend stores only a hash
+ * The generated password is shown exactly once - the backend stores only a hash
  * and cannot reproduce it. The copy here says so plainly, because someone who
  * closes this dialog assuming they can find it later will be wrong.
  */
@@ -346,7 +346,7 @@ function CredentialsModal({
         <div className="space-y-4">
           <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-text">
             <strong className="font-semibold">Copy this now.</strong> The password is not stored
-            anywhere and cannot be shown again — only reset.
+            anywhere and cannot be shown again - only reset.
           </div>
 
           <div className="space-y-2">
@@ -364,7 +364,7 @@ function CredentialsModal({
 
           <p className="text-xs text-text-muted">
             They will be asked to change it when they first sign in. Send it through a channel you
-            trust — not a group chat.
+            trust - not a group chat.
           </p>
 
           <div className="flex gap-2">
