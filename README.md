@@ -3,10 +3,10 @@
 Dashboard for the MPrnt print kiosk platform. Next.js 14 (App Router), TypeScript,
 Tailwind. Talks to the `mprnt-backend` admin API.
 
-Two layers, one codebase — which one you get is decided by your account:
+Two layers, one codebase - which one you get is decided by your account:
 
-- **Super admin** — every shop. Creates organizations and staff, sets pricing.
-- **Shop admin** — one shop. Their sessions, printers, revenue and staff.
+- **Super admin** - every shop. Creates organizations and staff, sets pricing.
+- **Shop admin** - one shop. Their sessions, printers, revenue and staff.
 
 ---
 
@@ -47,7 +47,7 @@ browser ──▶ /api/proxy/admin/*  ──▶  backend /api/v1/admin/*
 
 This matters because the dashboard shows revenue and manages staff accounts. In
 the usual `localStorage` pattern, one XSS bug hands an attacker a 7-day
-credential. Here there is nothing in JS to steal — verified in the browser:
+credential. Here there is nothing in JS to steal - verified in the browser:
 `document.cookie` exposes only a non-secret display profile, and storage holds
 no JWT.
 
@@ -59,7 +59,7 @@ Three consequences worth knowing:
   open relay to the whole backend, authenticated as an admin.
 - **`mprnt_profile` is deliberately readable.** It drives which nav and buttons
   render. It is editable by anyone with devtools, so the backend re-checks every
-  permission on every request — hiding a button is courtesy, not security.
+  permission on every request - hiding a button is courtesy, not security.
 
 `middleware.ts` redirects unauthenticated visitors to `/login`. That is a
 convenience, not a boundary.
@@ -77,11 +77,11 @@ otherwise dark-mode users get a white flash on every navigation.
 
 ### `accent` vs `primary`
 
-The brand green (`#226d45`) measures **2.86:1** against the dark surface — fine
+The brand green (`#226d45`) measures **2.86:1** against the dark surface - fine
 as a button fill, illegible as text. So:
 
-- `bg-primary` — solid fills, always the brand green
-- `text-accent` — anything that must be *read*: links, active nav, emphasis
+- `bg-primary` - solid fills, always the brand green
+- `text-accent` - anything that must be *read*: links, active nav, emphasis
 
 `--color-accent` resolves to the brand green in light mode and a lighter green
 in dark mode. Use `text-accent`, not `text-primary`.
@@ -112,7 +112,7 @@ seven-column table at 375px is unreadable however much you scroll it.
 
 Checked in-browser, both themes:
 
-- **Contrast**: every text/background pair clears WCAG AA (4.5:1). Verified —
+- **Contrast**: every text/background pair clears WCAG AA (4.5:1). Verified -
   the kiosk flow's bright success green and amber measured 2.22:1 and 2.09:1 on
   an off-white surface, so this app uses darker variants for text.
 - **Zoom is not disabled.** Unlike the kiosk flow, this shows dense figures, and
@@ -121,7 +121,7 @@ Checked in-browser, both themes:
   ring; dialogs take focus, trap scroll and close on Escape.
 - **Landmarks**: one `<h1>` per page, no heading-level skips, named `nav` and
   `main`, `aria-current="page"` on active links.
-- **Status is never colour alone** — every pill carries a label.
+- **Status is never colour alone** - every pill carries a label.
 - **Charts have a table.** The SVG is `aria-hidden`; the same data is rendered
   as a visually hidden `<table>`.
 - **Touch targets** are ≥44px (38px for compact buttons).
@@ -139,7 +139,7 @@ app/
     page.tsx              overview: KPIs, revenue chart, alerts
     sessions/             job list, filters, CSV export
     printers/             printer health + kiosks
-    attention/            paid but unprinted — the page that costs money
+    attention/            paid but unprinted - the page that costs money
     staff/                admin accounts, one-time passwords
     organizations/        shops (super admin)
     pricing/              rates in force + history
@@ -164,7 +164,7 @@ lib/
 
 **Data fetching is a plain hook**, not SWR or React Query. The needs here are a
 request, a loading state and a retry. Swap it in if list invalidation gets
-complicated — don't add it before that.
+complicated - don't add it before that.
 
 **The chart is hand-rolled SVG.** One bar series did not justify a charting
 dependency, and inline SVG inherits the theme tokens directly, so dark mode

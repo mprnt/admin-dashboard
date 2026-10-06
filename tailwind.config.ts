@@ -26,6 +26,7 @@ const config: Config = {
         surface: {
           DEFAULT: 'rgb(var(--color-surface) / <alpha-value>)',
           secondary: 'rgb(var(--color-surface-secondary) / <alpha-value>)',
+          sunken: 'rgb(var(--color-surface-sunken) / <alpha-value>)',
         },
         // Primary rendered as text/icons on a surface. Use this instead of
         // `primary` for anything that must be read, not just seen.
@@ -39,6 +40,14 @@ const config: Config = {
         error: 'rgb(var(--color-error) / <alpha-value>)',
         warning: 'rgb(var(--color-warning) / <alpha-value>)',
         info: 'rgb(var(--color-info) / <alpha-value>)',
+      },
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        raised: 'var(--shadow-raised)',
+        float: 'var(--shadow-float)',
+      },
+      borderRadius: {
+        '2xl': '1.125rem',
       },
       spacing: {
         sidebar: 'var(--sidebar-width)',
