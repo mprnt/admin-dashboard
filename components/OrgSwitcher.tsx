@@ -44,8 +44,8 @@ export function OrgSwitcher() {
           setOrg(picked ? { id: picked.id, name: picked.name } : null);
         }}
         className={`appearance-none pl-8 pr-8 py-1.5 min-h-[36px] max-w-[11rem] sm:max-w-[16rem] truncate
-          rounded-lg border text-sm font-semibold transition-colors
-          ${org ? 'border-accent/50 bg-accent/10 text-accent' : 'border-border bg-surface text-text'}`}
+          rounded-full border text-[13px] font-medium transition-colors shadow-card
+          ${org ? 'border-accent/40 bg-accent/10 text-accent' : 'border-border bg-surface text-text hover:border-text-muted/40'}`}
       >
         <option value="">All shops</option>
         {orgs.map((o) => (
@@ -79,18 +79,23 @@ export function ScopeBanner() {
   return (
     <div
       role="status"
-      className="lg:pl-sidebar bg-accent/10 border-b border-accent/30 text-sm"
+      className="lg:pl-sidebar text-sm"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-3">
-        <p className="text-text min-w-0 truncate">
-          Viewing <span className="font-bold">{org.name}</span> only
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-4">
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-accent/10 px-3.5 py-1.5">
+        <p className="text-text min-w-0 truncate flex items-center gap-2">
+          <Icon name="building" className="w-4 h-4 text-accent flex-shrink-0" />
+          <span className="truncate">
+            Viewing <span className="font-semibold">{org.name}</span> only
+          </span>
         </p>
         <button
           onClick={() => setOrg(null)}
-          className="flex-shrink-0 font-semibold text-accent hover:underline min-h-[32px]"
+          className="flex-shrink-0 font-medium text-accent hover:underline min-h-[32px]"
         >
           Show all shops
         </button>
+        </div>
       </div>
     </div>
   );

@@ -184,7 +184,7 @@ export function AssignKioskModal({
             <option value="">Select a kiosk…</option>
             {candidates.map((k) => (
               <option key={k.id} value={k.id}>
-                {k.kioskId} — {k.name}
+                {k.kioskId} - {k.name}
                 {k.organizationName ? ` (currently ${k.organizationName})` : ''}
               </option>
             ))}
@@ -259,7 +259,7 @@ export function CreateKioskModal({
         <Field
           label="Kiosk code"
           htmlFor="k-code"
-          hint="2–10 letters or digits. This is what the QR code points at — it cannot be changed later."
+          hint="2–10 letters or digits. This is what the QR code points at - it cannot be changed later."
         >
           <input
             id="k-code"
@@ -501,7 +501,7 @@ export function EnrollPrinterModal({
           >
             {kiosks.map((k) => (
               <option key={k.id} value={k.id}>
-                {k.kioskId} — {k.name}
+                {k.kioskId} - {k.name}
                 {k.organizationName ? ` (${k.organizationName})` : ''}
               </option>
             ))}
@@ -571,7 +571,7 @@ export function EnrollPrinterModal({
 
 /**
  * Shows a printer key exactly once. The backend stores only a digest, so this
- * is the only moment it exists in readable form — the copy says so plainly.
+ * is the only moment it exists in readable form - the copy says so plainly.
  */
 export function PrinterKeyModal({
   secret,
@@ -594,7 +594,7 @@ export function PrinterKeyModal({
         <div className="space-y-4">
           <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-text">
             <strong className="font-semibold">Copy this now.</strong> The key is not stored anywhere
-            and cannot be shown again — only replaced.
+            and cannot be shown again - only replaced.
             {secret.rotated && ' The previous key has already stopped working.'}
           </div>
 
@@ -615,7 +615,7 @@ export function PrinterKeyModal({
 
           <p className="text-xs text-text-muted">
             On the Pi, store it in <span className="font-mono">/etc/mprnt/printer.env</span> with
-            mode 0640. Send it to whoever sets up the Pi through a private channel — not a group
+            mode 0640. Send it to whoever sets up the Pi through a private channel - not a group
             chat.
           </p>
 

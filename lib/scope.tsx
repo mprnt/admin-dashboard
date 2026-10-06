@@ -6,7 +6,7 @@ import React from 'react';
  * The organization a super admin is currently looking at.
  *
  * A super admin sees every shop by default. Choosing one here pins every page
- * to that shop — the same view its owner has — without impersonating anyone:
+ * to that shop - the same view its owner has - without impersonating anyone:
  * requests are still made as the super admin, just filtered, so the audit
  * trail stays truthful about who looked.
  *

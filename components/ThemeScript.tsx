@@ -1,7 +1,7 @@
 /**
  * Applies the stored theme before first paint.
  *
- * Without this the page renders light, then flips to dark once React hydrates —
+ * Without this the page renders light, then flips to dark once React hydrates -
  * a white flash on every navigation for dark-mode users. Runs synchronously in
  * <head>, so it must stay small and dependency-free.
  */

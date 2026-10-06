@@ -10,7 +10,7 @@ type Mode = 'light' | 'dark' | 'system';
  *
  * "System" is the default and is a real option, not a fallback: someone whose
  * OS switches to dark at night expects this to follow. The choice persists in
- * localStorage, which is appropriate here — it is a per-device preference, not
+ * localStorage, which is appropriate here - it is a per-device preference, not
  * account state.
  */
 export function ThemeToggle() {
@@ -51,7 +51,7 @@ export function ThemeToggle() {
       onClick={cycle}
       title={label}
       aria-label={`${label}. Activate to change.`}
-      className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-secondary transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+      className="rounded-full text-text-muted hover:text-text hover:bg-text/5 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
     >
       {mode === 'dark' ? (
         <Icon name="moon" className="w-5 h-5" />

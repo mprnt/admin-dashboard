@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { Period } from '@/lib/api';
+import { Icon } from '@/components/Icon';
 
 const OPTIONS: { value: Period; label: string; short: string }[] = [
   { value: 'day', label: 'Today', short: 'Day' },
@@ -12,7 +13,7 @@ const OPTIONS: { value: Period; label: string; short: string }[] = [
 
 /**
  * Period selector, rendered as a radio group rather than a row of buttons so
- * arrow keys move between options and screen readers announce the selection —
+ * arrow keys move between options and screen readers announce the selection -
  * which is what this control actually is.
  */
 export function PeriodFilter({
@@ -29,7 +30,7 @@ export function PeriodFilter({
       <div
         role="radiogroup"
         aria-label="Reporting period"
-        className="inline-flex bg-surface-secondary border border-border rounded-lg p-1"
+        className="inline-flex bg-text/[0.05] rounded-xl p-1 max-w-full"
       >
         {OPTIONS.map((opt) => {
           const active = value === opt.value;
@@ -39,9 +40,9 @@ export function PeriodFilter({
               role="radio"
               aria-checked={active}
               onClick={() => onChange(opt.value)}
-              className={`px-3 sm:px-4 py-1.5 rounded-md text-sm font-semibold transition-colors min-h-[36px] ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all min-h-[34px] ${
                 active
-                  ? 'bg-surface text-accent shadow-sm'
+                  ? 'bg-surface text-text shadow-raised'
                   : 'text-text-muted hover:text-text'
               }`}
             >
@@ -53,8 +54,9 @@ export function PeriodFilter({
       </div>
 
       {timezone && (
-        <p className="text-xs text-text-muted">
-          Times shown in <span className="font-medium">{timezone}</span>
+        <p className="text-xs text-text-muted flex items-center gap-1">
+          <Icon name="clock" className="w-3.5 h-3.5" />
+          <span className="font-medium">{timezone}</span>
         </p>
       )}
     </div>

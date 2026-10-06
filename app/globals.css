@@ -8,64 +8,80 @@
    both apps stay visually in sync. Change brand colours in both.
    ============================================================ */
 
+/* Redesign note: the brand green is unchanged in spirit but deepened slightly
+   so it reads as "forest" rather than "default success". Neutrals moved to a
+   warm paper scale (Notion-like) so the app feels calm rather than clinical.
+   If mprnt-qr should match, copy the neutrals across too. */
 :root {
-  /* PRIMARY brand color - dark green for sustainability + trust */
-  --color-primary: 34 107 69;
-  --color-primary-dark: 25 80 50;
-  --color-primary-light: 52 150 94;
+  /* PRIMARY brand color - deep forest green */
+  --color-primary: 26 98 64;
+  --color-primary-dark: 18 74 48;
+  --color-primary-light: 60 160 108;
 
   /* SECONDARY brand color - sage green for balance */
   --color-secondary: 74 140 107;
   --color-secondary-dark: 55 105 80;
   --color-secondary-light: 110 170 140;
 
-  /* Light mode */
-  --color-surface: 252 252 250;
-  --color-surface-secondary: 245 245 242;
-  --color-border: 225 221 216;
-  --color-text: 26 26 26;
-  --color-text-muted: 106 106 106;
+  /* Light mode: warm paper canvas, white cards */
+  --color-surface: 255 255 255;
+  --color-surface-secondary: 247 246 243;
+  --color-surface-sunken: 240 238 234;
+  --color-border: 232 229 223;
+  --color-text: 28 27 25;
+  --color-text-muted: 107 104 98;
 
   /* Status.
      These are used as TEXT on a surface, not just as fills, so each one is
      chosen to clear WCAG AA (4.5:1). The bright green/amber from the kiosk
-     flow measure ~2.2:1 on an off-white background — fine behind a solid
+     flow measure ~2.2:1 on an off-white background - fine behind a solid
      fill, unreadable as a label. */
-  --color-success: 21 128 61;
-  --color-error: 200 30 30;
-  --color-warning: 168 75 10;
-  --color-info: 29 100 210;
+  --color-success: 21 120 61;
+  --color-error: 190 36 36;
+  --color-warning: 160 72 10;
+  --color-info: 29 96 200;
 
   /* Primary, adjusted for legibility as text on a surface. Fills keep using
      --color-primary so buttons stay brand-accurate. */
-  --color-accent: 27 87 56;
+  --color-accent: 22 92 60;
 
-  /* Admin chrome — the density this app needs beyond the kiosk flow */
-  --sidebar-width: 15rem;
+  /* Elevation: soft, layered shadows instead of hard outlines. */
+  --shadow-card: 0 1px 2px rgb(28 27 25 / 0.04), 0 1px 1px rgb(28 27 25 / 0.02);
+  --shadow-raised: 0 1px 2px rgb(28 27 25 / 0.04), 0 8px 24px -6px rgb(28 27 25 / 0.12);
+  --shadow-float: 0 2px 6px rgb(28 27 25 / 0.06), 0 18px 40px -12px rgb(28 27 25 / 0.25);
+
+  /* Admin chrome - the density this app needs beyond the kiosk flow */
+  --sidebar-width: 16rem;
   --header-height: 3.5rem;
   --mobile-nav-height: 4rem;
 }
 
 [data-theme='dark'] {
-  --color-surface: 20 20 18;
-  --color-surface-secondary: 35 34 31;
-  --color-border: 65 62 58;
-  --color-text: 248 247 245;
-  --color-text-muted: 160 158 155;
+  --color-surface: 26 26 24;
+  --color-surface-secondary: 17 17 16;
+  --color-surface-sunken: 12 12 11;
+  --color-border: 46 45 42;
+  --color-text: 238 237 233;
+  --color-text-muted: 158 155 149;
 
-  --color-primary-light: 80 190 130;
+  --color-primary: 34 120 78;
+  --color-primary-light: 96 200 145;
   --color-secondary-light: 130 200 160;
 
-  /* The dark brand green measures 2.86:1 on the dark surface — illegible as
-     text. Links, active navigation and emphasis use this lighter variant
-     instead; solid primary fills are unaffected. */
-  --color-accent: 80 190 130;
+  /* The dark brand green is illegible as text on the dark surface. Links,
+     active navigation and emphasis use this lighter variant instead; solid
+     primary fills are unaffected. */
+  --color-accent: 110 210 155;
 
   /* Status colours lifted for contrast against the dark surface */
-  --color-success: 74 222 128;
-  --color-error: 248 113 113;
-  --color-warning: 251 191 36;
-  --color-info: 96 165 250;
+  --color-success: 90 214 140;
+  --color-error: 248 120 120;
+  --color-warning: 245 185 70;
+  --color-info: 120 175 250;
+
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.03);
+  --shadow-raised: 0 0 0 1px rgb(255 255 255 / 0.04), 0 10px 30px -10px rgb(0 0 0 / 0.6);
+  --shadow-float: 0 0 0 1px rgb(255 255 255 / 0.06), 0 20px 50px -12px rgb(0 0 0 / 0.8);
 }
 
 * {
@@ -84,8 +100,10 @@ html {
 body {
   color: rgb(var(--color-text));
   background: rgb(var(--color-surface-secondary));
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
@@ -112,12 +130,12 @@ textarea {
    ACCESSIBILITY
    ============================================================ */
 
-/* A single, consistent focus ring. Never remove it without replacing it —
+/* A single, consistent focus ring. Never remove it without replacing it -
    keyboard users navigate this entire dashboard by focus. */
 :focus-visible {
   outline: 2px solid rgb(var(--color-primary));
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 [data-theme='dark'] :focus-visible {
@@ -239,6 +257,42 @@ button:active:not(:disabled) {
   transform: scale(0.985);
 }
 
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-sheet {
+  animation: sheetUp 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.animate-fade {
+  animation: fadeIn 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .animate-sheet {
+    animation: fadeInUp 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+}
+
+::selection {
+  background: rgb(var(--color-primary) / 0.18);
+}
+
 /* ============================================================
    LAYOUT HELPERS
    ============================================================ */
@@ -261,6 +315,46 @@ button:active:not(:disabled) {
 .scroll-x::-webkit-scrollbar-thumb {
   background: rgb(var(--color-border));
   border-radius: 3px;
+}
+
+/* Page titles carry the one expressive typeface in the app; everything else
+   is set in the UI sans. Kept to h1 so the serif reads as a signature, not a
+   theme. */
+.page-title {
+  font-family: var(--font-display), Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 1.75rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: rgb(var(--color-text));
+}
+
+@media (min-width: 640px) {
+  .page-title {
+    font-size: 2.125rem;
+  }
+}
+
+/* Small uppercase section label used for nav groups and card eyebrows. */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-muted));
+}
+
+/* Frosted chrome for sticky header and floating mobile nav. */
+.glass {
+  background: rgb(var(--color-surface-secondary) / 0.78);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: rgb(var(--color-surface-secondary));
+  }
 }
 
 /* Tabular figures so currency columns line up and don't jitter as they update. */

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { OrgSwitcher, ScopeBanner } from '@/components/OrgSwitcher';
+import { useApi } from '@/lib/useApi';
 import type { AdminProfile } from '@/lib/profile';
 
 /**
@@ -13,9 +14,14 @@ import type { AdminProfile } from '@/lib/profile';
  *
  * Navigation adapts rather than just shrinking:
  *  - lg and up: a persistent sidebar, since a dashboard is a place you stay;
- *  - below lg: a bottom tab bar for the five most-used destinations, with the
- *    rest behind a "More" sheet. Bottom placement is deliberate — on a phone
- *    held one-handed, the top of the screen is the hardest place to reach.
+ *  - below lg: a floating bottom tab bar for the four most-used destinations,
+ *    with the rest behind a "More" sheet. Bottom placement is deliberate - on
+ *    a phone held one-handed, the top of the screen is the hardest place to
+ *    reach.
+ *
+ * Destinations are grouped by intent: "Operate" is the day-to-day (is money
+ * coming in, is anything broken), "Manage" is configuration you touch rarely.
+ * Attention carries a live count so a problem is visible from any page.
  */
 
 export interface NavItem {
@@ -26,18 +32,25 @@ export interface NavItem {
   superAdminOnly?: boolean;
   /** Shown in the mobile tab bar rather than the More sheet. */
   primary?: boolean;
+  group: 'operate' | 'manage';
 }
 
 const NAV: NavItem[] = [
-  { href: '/', label: 'Overview', icon: 'home', primary: true },
-  { href: '/sessions', label: 'Sessions', icon: 'receipt', permission: 'sessions:read', primary: true },
-  { href: '/printers', label: 'Printers', icon: 'printer', permission: 'printers:read', primary: true },
-  { href: '/attention', label: 'Attention', icon: 'alert', permission: 'reports:read', primary: true },
-  { href: '/pricing', label: 'Pricing', icon: 'tag', permission: 'pricing:read' },
-  { href: '/staff', label: 'Staff', icon: 'users', permission: 'staff:read' },
-  { href: '/organizations', label: 'Shops', icon: 'building', superAdminOnly: true },
-  { href: '/audit', label: 'Audit log', icon: 'shield', permission: 'audit:read' },
+  { href: '/', label: 'Overview', icon: 'home', primary: true, group: 'operate' },
+  { href: '/sessions', label: 'Sessions', icon: 'receipt', permission: 'sessions:read', primary: true, group: 'operate' },
+  { href: '/printers', label: 'Printers', icon: 'printer', permission: 'printers:read', primary: true, group: 'operate' },
+  { href: '/attention', label: 'Attention', icon: 'alert', permission: 'reports:read', primary: true, group: 'operate' },
+  { href: '/pricing', label: 'Pricing', icon: 'tag', permission: 'pricing:read', group: 'manage' },
+  { href: '/staff', label: 'Staff', icon: 'users', permission: 'staff:read', group: 'manage' },
+  { href: '/organizations', label: 'Shops', icon: 'building', superAdminOnly: true, group: 'manage' },
+  { href: '/leads', label: 'Leads', icon: 'inbox', superAdminOnly: true, group: 'manage' },
+  { href: '/audit', label: 'Audit log', icon: 'shield', permission: 'audit:read', group: 'manage' },
 ];
+
+const GROUP_LABEL: Record<NavItem['group'], string> = {
+  operate: 'Operate',
+  manage: 'Manage',
+};
 
 export function visibleNav(profile: AdminProfile): NavItem[] {
   return NAV.filter((item) => {
@@ -63,8 +76,23 @@ export function Shell({
   const primary = items.filter((i) => i.primary).slice(0, 4);
   const secondary = items.filter((i) => !primary.includes(i));
 
+  // Live count for the Attention badge. Refetched on navigation so it clears
+  // soon after someone deals with the queue.
+  const canSeeAttention = profile.permissions.includes('reports:read');
+  const attention = useApi<{ count: number }>(canSeeAttention ? '/attention' : null, [pathname]);
+  const badges: Record<string, number> = { '/attention': attention.data?.count ?? 0 };
+
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
+
+  React.useEffect(() => setMoreOpen(false), [pathname]);
+
+  React.useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMoreOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [moreOpen]);
 
   async function signOut() {
     setSigningOut(true);
@@ -74,7 +102,12 @@ export function Shell({
   }
 
   const scopeLabel =
-    profile.role === 'super_admin' ? 'Platform' : profile.organizationName || 'Your shop';
+    profile.role === 'super_admin' ? 'MPrnt Platform' : profile.organizationName || 'Your shop';
+  const roleLabel = ROLE_LABEL[profile.role] ?? profile.role;
+
+  const groups = (['operate', 'manage'] as const)
+    .map((g) => ({ id: g, items: items.filter((i) => i.group === g) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <div className="min-h-dvh">
@@ -83,85 +116,102 @@ export function Shell({
       </a>
 
       {/* ---------------- Desktop sidebar ---------------- */}
-      <aside
-        className="hidden lg:flex fixed inset-y-0 left-0 z-40 w-sidebar flex-col bg-surface border-r border-border"
-      >
-        <div className="h-header flex items-center gap-2 px-5 border-b border-border">
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 z-40 w-sidebar flex-col border-r border-border/60">
+        <div className="h-header flex items-center px-5">
           <Logo />
         </div>
 
-        <div className="px-5 py-4 border-b border-border">
-          <p className="text-xs font-medium text-text-muted uppercase tracking-wide">
-            {profile.role === 'super_admin' ? 'Signed in as' : 'Shop'}
-          </p>
-          <p className="text-sm font-bold text-text truncate mt-0.5">{scopeLabel}</p>
-          <p className="text-xs text-text-muted truncate">{profile.email}</p>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto p-3" aria-label="Main navigation">
-          <ul className="space-y-1">
-            {items.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive(item.href)
-                      ? 'bg-primary/10 text-accent'
-                      : 'text-text-muted hover:text-text hover:bg-surface-secondary'
-                  }`}
-                >
-                  <Icon name={item.icon} className="w-5 h-5 flex-shrink-0" />
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <div className="p-3 border-t border-border space-y-1">
+        <div className="px-3 pt-1 pb-3">
           <Link
             href="/account"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-surface-secondary"
+            className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-text/5 transition-colors"
           >
-            <Icon name="cog" className="w-5 h-5" />
-            Account
+            <Avatar name={scopeLabel} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-text truncate">{scopeLabel}</span>
+              <span className="block text-xs text-text-muted truncate">{roleLabel}</span>
+            </span>
           </Link>
-          <button
-            onClick={signOut}
-            disabled={signingOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-muted hover:text-error hover:bg-surface-secondary"
-          >
-            <Icon name="logout" className="w-5 h-5" />
-            {signingOut ? 'Signing out…' : 'Sign out'}
-          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 pb-3" aria-label="Main navigation">
+          {groups.map((group) => (
+            <div key={group.id} className="mt-3 first:mt-1">
+              <p className="eyebrow px-3 mb-1.5">{GROUP_LABEL[group.id]}</p>
+              <ul className="space-y-0.5">
+                {group.items.map((item) => {
+                  const active = isActive(item.href);
+                  const badge = badges[item.href];
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          active
+                            ? 'bg-surface text-text font-semibold shadow-card'
+                            : 'text-text-muted font-medium hover:text-text hover:bg-text/5'
+                        }`}
+                      >
+                        <Icon
+                          name={item.icon}
+                          className={`w-[18px] h-[18px] flex-shrink-0 ${active ? 'text-accent' : ''}`}
+                        />
+                        <span className="flex-1">{item.label}</span>
+                        {badge > 0 && <CountBadge count={badge} />}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-border/60">
+          <div className="flex items-center gap-1">
+            <Link
+              href="/account"
+              aria-current={isActive('/account') ? 'page' : undefined}
+              className="flex-1 min-w-0 flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-text/5"
+            >
+              <Icon name="cog" className="w-[18px] h-[18px] flex-shrink-0" />
+              <span className="truncate">{profile.email}</span>
+            </Link>
+            <button
+              onClick={signOut}
+              disabled={signingOut}
+              title="Sign out"
+              aria-label={signingOut ? 'Signing out' : 'Sign out'}
+              className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-error hover:bg-text/5"
+            >
+              <Icon name="logout" className="w-[18px] h-[18px]" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* ---------------- Top bar ---------------- */}
-      <header className="lg:pl-sidebar sticky top-0 z-30 bg-surface/90 backdrop-blur border-b border-border">
-        <div className="h-header flex items-center justify-between gap-3 px-4 sm:px-6">
+      {/* ---------------- Top bar ----------------
+          Holds context (which shop you are looking at) and preferences. The
+          page's own title lives in the page, so it is not repeated here. */}
+      <header className="lg:pl-sidebar sticky top-0 z-30 glass border-b border-border/60">
+        <div className="h-header max-w-6xl mx-auto flex items-center justify-between gap-3 px-4 sm:px-8">
           <div className="lg:hidden">
             <Logo compact />
           </div>
 
-          <div className="hidden lg:block min-w-0">
-            <p className="text-sm font-semibold text-text truncate">
-              {items.find((i) => isActive(i.href))?.label ?? 'Dashboard'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2 lg:flex-1 min-w-0">
             {profile.role === 'super_admin' && (
               <>
                 <OrgSwitcher />
-                <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-accent text-xs font-semibold">
+                <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-accent text-xs font-medium">
                   Super admin
                 </span>
               </>
             )}
-            <ThemeToggle />
           </div>
+
+          <ThemeToggle />
         </div>
       </header>
 
@@ -171,40 +221,61 @@ export function Shell({
       <main
         id="main"
         tabIndex={-1}
-        className="lg:pl-sidebar pb-[calc(var(--mobile-nav-height)+1rem)] lg:pb-8"
+        className="lg:pl-sidebar pb-[calc(var(--mobile-nav-height)+2.5rem+env(safe-area-inset-bottom))] lg:pb-12 outline-none"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-7">{children}</div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-6 sm:pt-10">{children}</div>
       </main>
 
-      {/* ---------------- Mobile tab bar ---------------- */}
+      {/* ---------------- Mobile tab bar ----------------
+          Floats above the content with a gap, so it reads as a control rather
+          than part of the page, and clears the iOS home indicator. */}
       <nav
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface border-t border-border"
+        className="lg:hidden fixed inset-x-3 z-30"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         aria-label="Main navigation"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <ul className="flex items-stretch h-mobile-nav">
-          {primary.map((item) => (
-            <li key={item.href} className="flex-1">
-              <Link
-                href={item.href}
-                aria-current={isActive(item.href) ? 'page' : undefined}
-                className={`h-full flex flex-col items-center justify-center gap-1 text-[11px] font-medium ${
-                  isActive(item.href) ? 'text-accent' : 'text-text-muted'
-                }`}
-              >
-                <Icon name={item.icon} className="w-5 h-5" />
-                {item.label}
-              </Link>
-            </li>
-          ))}
+        <ul className="glass flex items-stretch h-mobile-nav rounded-2xl border border-border/70 shadow-float px-1">
+          {primary.map((item) => {
+            const active = isActive(item.href);
+            const badge = badges[item.href];
+            return (
+              <li key={item.href} className="flex-1">
+                <Link
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`relative h-full flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+                    active ? 'text-accent' : 'text-text-muted'
+                  }`}
+                >
+                  <span
+                    className={`relative flex items-center justify-center w-12 h-7 rounded-full transition-colors ${
+                      active ? 'bg-primary/15' : ''
+                    }`}
+                  >
+                    <Icon name={item.icon} className="w-5 h-5" />
+                    {badge > 0 && (
+                      <span className="absolute -top-1 right-1">
+                        <CountBadge count={badge} small />
+                      </span>
+                    )}
+                  </span>
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
           <li className="flex-1">
             <button
               onClick={() => setMoreOpen(true)}
               aria-expanded={moreOpen}
               aria-haspopup="dialog"
-              className="w-full h-full flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-text-muted"
+              className={`w-full h-full flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+                secondary.some((i) => isActive(i.href)) ? 'text-accent' : 'text-text-muted'
+              }`}
             >
-              <Icon name="menu" className="w-5 h-5" />
+              <span className="flex items-center justify-center w-12 h-7">
+                <Icon name="menu" className="w-5 h-5" />
+              </span>
               More
             </button>
           </li>
@@ -215,7 +286,7 @@ export function Shell({
       {moreOpen && (
         <div className="lg:hidden fixed inset-0 z-40">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade"
             onClick={() => setMoreOpen(false)}
             aria-hidden="true"
           />
@@ -223,49 +294,53 @@ export function Shell({
             role="dialog"
             aria-modal="true"
             aria-label="More navigation"
-            className="absolute bottom-0 inset-x-0 bg-surface rounded-t-2xl border-t border-border p-4 animate-in"
+            className="absolute bottom-0 inset-x-0 bg-surface rounded-t-[1.5rem] shadow-float p-4 animate-sheet"
             style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
           >
             <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" aria-hidden="true" />
 
-            <div className="px-1 pb-3 border-b border-border">
-              <p className="text-sm font-bold text-text truncate">{scopeLabel}</p>
-              <p className="text-xs text-text-muted truncate">{profile.email}</p>
-            </div>
+            <Link
+              href="/account"
+              className="flex items-center gap-3 rounded-2xl bg-surface-secondary p-3"
+            >
+              <Avatar name={scopeLabel} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-text truncate">{scopeLabel}</span>
+                <span className="block text-xs text-text-muted truncate">{profile.email}</span>
+              </span>
+              <Icon name="chevronRight" className="w-4 h-4 text-text-muted" />
+            </Link>
 
-            <ul className="py-2">
-              {secondary.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setMoreOpen(false)}
-                    className={`flex items-center gap-3 px-2 py-3 rounded-lg text-sm font-medium ${
-                      isActive(item.href) ? 'text-accent bg-primary/10' : 'text-text'
-                    }`}
-                  >
-                    <Icon name={item.icon} className="w-5 h-5" />
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-              <li>
-                <Link
-                  href="/account"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-3 px-2 py-3 rounded-lg text-sm font-medium text-text"
-                >
-                  <Icon name="cog" className="w-5 h-5" />
-                  Account
-                </Link>
-              </li>
-            </ul>
+            {secondary.length > 0 && (
+              <ul className="grid grid-cols-2 gap-2 mt-3">
+                {secondary.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? 'page' : undefined}
+                        className={`flex flex-col gap-3 p-3.5 rounded-2xl border text-sm font-medium transition-colors ${
+                          active
+                            ? 'border-accent/40 bg-primary/10 text-accent'
+                            : 'border-border text-text hover:bg-surface-secondary'
+                        }`}
+                      >
+                        <Icon name={item.icon} className="w-5 h-5" />
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
             <button
               onClick={signOut}
               disabled={signingOut}
-              className="w-full flex items-center gap-3 px-2 py-3 rounded-lg text-sm font-semibold text-error border-t border-border mt-1"
+              className="w-full flex items-center justify-center gap-2 mt-3 py-3 rounded-2xl text-sm font-medium text-error hover:bg-error/10 min-h-[44px]"
             >
-              <Icon name="logout" className="w-5 h-5" />
+              <Icon name="logout" className="w-4 h-4" />
               {signingOut ? 'Signing out…' : 'Sign out'}
             </button>
           </div>
@@ -275,18 +350,55 @@ export function Shell({
   );
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super admin',
+  owner: 'Owner',
+  manager: 'Manager',
+  viewer: 'Viewer',
+};
+
+function CountBadge({ count, small = false }: { count: number; small?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full bg-warning text-surface font-semibold tabular ${
+        small ? 'min-w-[16px] h-4 px-1 text-[10px]' : 'min-w-[20px] h-5 px-1.5 text-[11px]'
+      }`}
+    >
+      {count > 99 ? '99+' : count}
+      <span className="sr-only"> need attention</span>
+    </span>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('');
+  return (
+    <span
+      aria-hidden="true"
+      className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-[13px] font-semibold text-white bg-gradient-to-br from-primary-light to-primary-dark"
+    >
+      {initials || 'M'}
+    </span>
+  );
+}
+
 function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex items-center gap-2.5">
       <span
         aria-hidden="true"
-        className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white"
+        className="w-8 h-8 rounded-[10px] bg-gradient-to-b from-primary to-primary-dark flex items-center justify-center text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]"
       >
-        <Icon name="printer" className="w-5 h-5" />
+        <Icon name="printer" className="w-[18px] h-[18px]" />
       </span>
-      <span className="font-bold text-text">
+      <span className="text-[15px] font-semibold tracking-tight text-text">
         MPrnt
-        {!compact && <span className="text-text-muted font-medium"> Admin</span>}
+        {!compact && <span className="text-text-muted font-normal"> Admin</span>}
       </span>
     </span>
   );
