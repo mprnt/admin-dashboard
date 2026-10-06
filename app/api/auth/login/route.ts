@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_BASE, setAuthCookies, AdminProfile, relayHeaders } from '@/lib/session';
+import { isSameOriginRequest } from '@/lib/security';
+
+function sameOrigin(req: Request): boolean {
+  return isSameOriginRequest({
+    origin: req.headers.get('origin'),
+    referer: req.headers.get('referer'),
+    host: req.headers.get('x-forwarded-host') || req.headers.get('host'),
+  });
+}
 
 /**
  * Signs in against the backend and stores both tokens in httpOnly cookies.
  * The tokens are never returned to the browser.
  */
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as { email?: string; password?: string };
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ message: 'Cross-origin request refused' }, { status: 403 });
+  }
+
+  const body = (await req.json().catch(() => null)) as { email?: string; password?: string } | null;
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
+  }
 
   let upstream: Response;
 
@@ -20,7 +36,7 @@ export async function POST(req: NextRequest) {
       cache: 'no-store',
     });
   } catch {
-    // The backend is unreachable — wrong MPRNT_API_URL, or it simply is not
+    // The backend is unreachable - wrong MPRNT_API_URL, or it simply is not
     // running. Without this the fetch throws, Next returns a bare 500, and the
     // sign-in form tells the person their password is wrong, which sends them
     // hunting for a problem that does not exist.

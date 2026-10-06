@@ -25,7 +25,7 @@ function resolveApiBase(): string {
 
   // A plain-http remote host is almost always a typo, and it fails in a way
   // that is hard to read: the host 301s to https, fetch downgrades POST to GET
-  // and drops the body, and the request lands on whatever GET route matches —
+  // and drops the body, and the request lands on whatever GET route matches -
   // for /admin/auth/login that is the auth middleware, so a sign-in attempt
   // comes back "Authentication required" instead of anything about the URL.
   if (raw.startsWith('http://')) {
@@ -33,7 +33,7 @@ function resolveApiBase(): string {
     const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '::1';
 
     if (!isLocal) {
-      console.warn(`[config] MPRNT_API_URL is http:// for a remote host; upgrading to https:// — ${host}`);
+      console.warn(`[config] MPRNT_API_URL is http:// for a remote host; upgrading to https:// - ${host}`);
       return 'https://' + raw.slice('http://'.length);
     }
   }
@@ -136,7 +136,7 @@ export async function apiFetch(
  * made it, rather than to this server.
  *
  * Every admin request reaches the backend from this server, so without these
- * the backend would record one IP for every admin in every shop — sharing one
+ * the backend would record one IP for every admin in every shop - sharing one
  * rate-limit bucket between all of them, and making the audit log's IP column
  * meaningless. The shared secret is what lets the backend believe the claimed
  * IP; see mprnt-backend/src/middleware/trustedProxy.ts.

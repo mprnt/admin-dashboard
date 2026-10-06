@@ -7,10 +7,14 @@
  * server. No token is ever available to this code, by design.
  */
 
+import { isSessionExpired, passwordChangeRedirect } from '@/lib/security';
+
 export class ApiError extends Error {
   constructor(
     message: string,
-    public status: number
+    public status: number,
+    /** Backend's machine-readable reason, when it sent one. */
+    public code?: string
   ) {
     super(message);
     this.name = 'ApiError';
@@ -23,9 +27,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
   });
 
-  if (res.status === 401) {
-    // The proxy already tried to refresh. Reaching here means the session is
-    // genuinely over, so send them to sign in rather than showing an error.
+  if (isSessionExpired(res)) {
+    // The proxy already tried to refresh and it failed, so the session is
+    // genuinely over: send them to sign in rather than showing an error. Any
+    // other 401 (e.g. a wrong current password) falls through to the error.
     if (typeof window !== 'undefined') window.location.href = '/login?expired=1';
     throw new ApiError('Session expired', 401);
   }
@@ -33,10 +38,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(
-      (body as { message?: string }).message || `Request failed (${res.status})`,
-      res.status
-    );
+    const { message, code } = body as { message?: string; code?: string };
+    // Signed in on a temporary password: the backend refuses everything but
+    // the account page's own calls, so take them there instead of erroring.
+    if (typeof window !== 'undefined') {
+      const target = passwordChangeRedirect(res.status, body, window.location.pathname);
+      if (target) window.location.href = target;
+    }
+    throw new ApiError(message || `Request failed (${res.status})`, res.status, code);
   }
 
   return (body as { data: T }).data;
@@ -257,5 +266,34 @@ export interface PriceListRow {
   colorPerPage: number;
   minCharge: number;
   effectiveFrom: string;
+  createdAt: string;
+}
+
+export interface LeadRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  message: string;
+  source: string;
+  createdAt: string;
+}
+
+export interface LeadPage {
+  leads: LeadRow[];
+  pagination: { total: number; limit: number; offset: number };
+}
+
+export interface RefundResult {
+  jobId: string;
+  refundId: string;
+  paymentId: string;
+  orderId: string;
+  /** Rupees. */
+  amount: number;
+  currency: string;
+  status: 'processed' | 'pending';
+  alreadyRefunded: boolean;
   createdAt: string;
 }

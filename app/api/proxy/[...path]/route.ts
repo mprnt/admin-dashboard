@@ -9,6 +9,13 @@ import {
   getProfile,
   relayHeaders,
 } from '@/lib/session';
+import {
+  createSingleFlight,
+  isSameOriginRequest,
+  isUnsafeMethod,
+  resolveProxyUrl,
+  SESSION_EXPIRED_HEADER,
+} from '@/lib/security';
 
 /**
  * Backend-for-frontend proxy.
@@ -24,15 +31,31 @@ import {
  * open relay to every backend route, authenticated with an admin's token.
  */
 
-const ALLOWED_PREFIX = 'admin/';
+type Tokens = { accessToken: string; refreshToken: string; expiresIn: number };
+type Refreshed = { tokens: Tokens; profile: AdminProfile } | null;
 
-async function refreshTokens(req: NextRequest): Promise<{
-  tokens: { accessToken: string; refreshToken: string; expiresIn: number };
-  profile: AdminProfile;
-} | null> {
+// The backend rotates the refresh token on every refresh. The overview page
+// fires several requests at once; when the access token expires they all 401
+// together, and without this each would spend the same refresh token, so all
+// but the first would fail and sign the person out. One refresh per token runs
+// at a time, and its result is reused briefly by requests still carrying the
+// old cookie. Per server process; across instances the backend decides.
+const refreshOnce = createSingleFlight<Tokens | null>(30_000);
+
+async function refreshTokens(req: NextRequest): Promise<Refreshed> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
+  const profile = getProfile();
+  if (!profile) return null;
+
+  const result = await refreshOnce(refreshToken, () => callRefresh(req, refreshToken)).catch(
+    () => null
+  );
+  return result ? { tokens: result, profile } : null;
+}
+
+async function callRefresh(req: NextRequest, refreshToken: string): Promise<Tokens | null> {
   const res = await fetch(`${API_BASE}/admin/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...relayHeaders(req) },
@@ -43,27 +66,30 @@ async function refreshTokens(req: NextRequest): Promise<{
   if (!res.ok) return null;
 
   const body = (await res.json().catch(() => ({}))) as {
-    data?: { accessToken: string; refreshToken: string; expiresIn: number };
+    data?: Tokens;
   };
-  if (!body.data) return null;
-
-  const profile = getProfile();
-  if (!profile) return null;
-
-  return { tokens: body.data, profile };
+  return body.data ?? null;
 }
 
 async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
-  const path = ctx.params.path.join('/');
-
-  if (!path.startsWith(ALLOWED_PREFIX)) {
+  const target = resolveProxyUrl(API_BASE, ctx.params.path, req.nextUrl.search || '');
+  if (!target) {
     return NextResponse.json({ message: 'Not found' }, { status: 404 });
   }
-
-  const search = req.nextUrl.search || '';
-  const url = `${API_BASE}/${path}${search}`;
+  const url = target.toString();
 
   const method = req.method;
+
+  if (
+    isUnsafeMethod(method) &&
+    !isSameOriginRequest({
+      origin: req.headers.get('origin'),
+      referer: req.headers.get('referer'),
+      host: req.headers.get('x-forwarded-host') || req.headers.get('host'),
+    })
+  ) {
+    return NextResponse.json({ message: 'Cross-origin request refused' }, { status: 403 });
+  }
   const hasBody = !['GET', 'HEAD'].includes(method);
   const rawBody = hasBody ? await req.text() : undefined;
 
@@ -98,12 +124,27 @@ async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
     refreshed = await refreshTokens(req);
 
     if (!refreshed) {
-      const res = NextResponse.json({ message: 'Session expired' }, { status: 401 });
+      const res = NextResponse.json(
+        { message: 'Session expired' },
+        { status: 401, headers: { [SESSION_EXPIRED_HEADER]: '1' } }
+      );
       clearAuthCookies(res);
       return res;
     }
 
-    upstream = await call(refreshed.tokens.accessToken);
+    try {
+      upstream = await call(refreshed.tokens.accessToken);
+    } catch {
+      // The refresh already spent the old refresh token, so the new pair must
+      // reach the browser even though the replay failed.
+      console.error(`[proxy] Cannot reach the backend at ${API_BASE}`);
+      const res = NextResponse.json(
+        { message: 'Cannot reach the MPrnt backend. Is it running?' },
+        { status: 503 }
+      );
+      setAuthCookies(res, refreshed.tokens, refreshed.profile);
+      return res;
+    }
   }
 
   const contentType = upstream.headers.get('content-type') || '';

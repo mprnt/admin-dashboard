@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseProfile } from '@/lib/profile';
 
 const PUBLIC_PATHS = ['/login'];
 
 /**
  * Route guard.
  *
- * This is a redirect for convenience, not a security boundary — the real checks
+ * This is a redirect for convenience, not a security boundary - the real checks
  * are on the backend, which validates the token and the tenant on every call.
  * Its job is to stop an unauthenticated visitor landing on an empty dashboard
  * that flashes before erroring.
@@ -37,6 +38,19 @@ export function middleware(req: NextRequest) {
     url.pathname = '/';
     url.search = '';
     return NextResponse.redirect(url);
+  }
+
+  // Someone signed in on a temporary password goes nowhere but the account
+  // page until they replace it. The profile cookie is client-editable, so the
+  // backend must enforce this too; this only keeps the UI honest.
+  if (hasSession && !pathname.startsWith('/account')) {
+    const profile = parseProfile(req.cookies.get('mprnt_profile')?.value);
+    if (profile?.mustChangePassword) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/account';
+      url.search = '?first=1';
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();

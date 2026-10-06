@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server';
 import { API_BASE, clearAuthCookies, getRefreshToken, relayHeaders } from '@/lib/session';
+import { isSameOriginRequest } from '@/lib/security';
+
+function sameOrigin(req: Request): boolean {
+  return isSameOriginRequest({
+    origin: req.headers.get('origin'),
+    referer: req.headers.get('referer'),
+    host: req.headers.get('x-forwarded-host') || req.headers.get('host'),
+  });
+}
 
 export async function POST(req: Request) {
+  if (!sameOrigin(req)) {
+    return NextResponse.json({ message: 'Cross-origin request refused' }, { status: 403 });
+  }
+
   const refreshToken = getRefreshToken();
 
   // Tell the backend to revoke the refresh token, then clear locally. A failure

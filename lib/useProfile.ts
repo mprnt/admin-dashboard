@@ -6,7 +6,7 @@ import { parseProfile, type AdminProfile } from '@/lib/profile';
 /**
  * Reads the non-httpOnly profile cookie.
  *
- * This drives which navigation and buttons render. It is a display hint only —
+ * This drives which navigation and buttons render. It is a display hint only -
  * the cookie is readable and therefore editable by anyone with devtools, so the
  * backend re-checks every permission on every request. Hiding a button the user
  * cannot use is courtesy, not security.

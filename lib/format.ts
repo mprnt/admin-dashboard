@@ -29,7 +29,7 @@ export function number(value: number): string {
 }
 
 export function dateTime(value: string | null): string {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Intl.DateTimeFormat(LOCALE, {
     day: '2-digit',
     month: 'short',
@@ -39,7 +39,7 @@ export function dateTime(value: string | null): string {
 }
 
 export function dateOnly(value: string | null): string {
-  if (!value) return '—';
+  if (!value) return '-';
   // Date-only strings from the API are already in the shop's timezone; parsing
   // them as UTC avoids the browser shifting them by its own offset.
   const d = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
@@ -47,7 +47,7 @@ export function dateOnly(value: string | null): string {
 }
 
 export function duration(seconds: number | null): string {
-  if (seconds === null || seconds === undefined) return '—';
+  if (seconds === null || seconds === undefined) return '-';
   if (seconds < 60) return `${Math.round(seconds)}s`;
   const m = Math.floor(seconds / 60);
   if (m < 60) return `${m}m ${Math.round(seconds % 60)}s`;
