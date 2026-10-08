@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useApi } from '@/lib/useApi';
 import { useProfile } from '@/lib/useProfile';
 import { useScope } from '@/lib/scope';
@@ -17,19 +18,32 @@ import {
   Toast,
 } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { ModelBadge } from '@/components/BusinessModel';
+import type { BusinessModelId } from '@/lib/businessModels';
+import { OrgSwitcher } from '@/components/OrgSwitcher';
 import {
   CreateKioskModal,
   EditKioskModal,
+  EditPrinterModal,
   EnrollPrinterModal,
   PrinterKeyModal,
 } from '@/components/FleetModals';
 
 /**
- * Kiosks and printers.
+ * QR points and printers.
+ *
+ * A QR point ("kiosk" in the schema and API) is a place customers scan and the
+ * queue of jobs waiting there - not a physical box. It can have several
+ * printers: a paid job queues at the QR point and is taken by whichever
+ * printer there is idle and capable, so two machines at one counter share the
+ * load and cover for each other.
+ *
+ * A printer is the machine itself. A station is a printer MPrnt also supplied
+ * the enclosure for - the same row, differently labelled.
  *
  * What a person can do here depends on their role:
- *  - super admin: add kiosks, enroll printers, rotate and revoke keys;
- *  - shop staff with printers:manage: edit their kiosks, and revoke their own
+ *  - super admin: add QR points, enroll printers, rotate and revoke keys;
+ *  - shop staff with printers:manage: edit their QR points, and revoke their own
  *    printers as an emergency lever;
  *  - everyone else: read-only status.
  */
@@ -50,6 +64,7 @@ export default function PrintersPage() {
   const [addKiosk, setAddKiosk] = React.useState(false);
   const [enroll, setEnroll] = React.useState(false);
   const [editKiosk, setEditKiosk] = React.useState<KioskRow | null>(null);
+  const [editPrinter, setEditPrinter] = React.useState<PrinterRow | null>(null);
   const [secret, setSecret] = React.useState<{
     printerId: string;
     apiKey: string;
@@ -106,20 +121,62 @@ export default function PrintersPage() {
   const silent = printerList.filter((p) => p.silent).length;
   const unenrolledKiosks = (kiosks.data?.kiosks ?? []).filter((k) => k.printersTotal === 0);
 
+  /**
+   * Printers grouped by the partner that owns them, with that partner's
+   * commercial model. The model comes from /organizations rather than the
+   * printer rows, which do not carry it.
+   */
+  const groups = React.useMemo(() => {
+    const models = new Map<string, BusinessModelId | null>(
+      (orgs.data?.organizations ?? []).map((o) => [o.id, o.businessModel])
+    );
+
+    const byOrg = new Map<string, { orgId: string | null; name: string; printers: PrinterRow[] }>();
+    for (const p of printerList) {
+      // A printer whose QR point has no partner is a real state, not an error:
+      // it is grouped under its own heading rather than dropped.
+      const key = p.organization?.id ?? 'unassigned';
+      let entry = byOrg.get(key);
+      if (!entry) {
+        entry = {
+          orgId: p.organization?.id ?? null,
+          name: p.organization?.name ?? 'No partner assigned',
+          printers: [],
+        };
+        byOrg.set(key, entry);
+      }
+      entry.printers.push(p);
+    }
+
+    return Array.from(byOrg.entries())
+      .map(([key, entry]) => ({
+        key,
+        ...entry,
+        businessModel: entry.orgId ? models.get(entry.orgId) ?? null : null,
+        stations: entry.printers.filter((p) => p.station.isStation).length,
+        standalone: entry.printers.filter((p) => !p.station.isStation).length,
+      }))
+      // Unassigned last; it is an exception, not a partner.
+      .sort((a, b) =>
+        a.orgId === null ? 1 : b.orgId === null ? -1 : a.name.localeCompare(b.name)
+      );
+  }, [printerList, orgs.data]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="page-title">Printers & kiosks</h1>
+          <h1 className="page-title">Printers & QR points</h1>
           <p className="text-sm text-text-muted mt-1.5">
-            Live status of every Raspberry Pi{showShop ? ' across all shops' : ''}
+            Live status of every Raspberry Pi{showShop ? ' across all partners' : ''}
           </p>
         </div>
         {isSuper && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <OrgSwitcher />
             <Button size="sm" variant="secondary" onClick={() => setAddKiosk(true)}>
               <Icon name="plus" className="w-4 h-4" />
-              Add kiosk
+              Add QR point
             </Button>
             <Button size="sm" onClick={() => setEnroll(true)} disabled={!kiosks.data?.kiosks.length}>
               <Icon name="key" className="w-4 h-4" />
@@ -137,14 +194,14 @@ export default function PrintersPage() {
                 {silent} {silent === 1 ? 'printer has' : 'printers have'} gone quiet
               </p>
               <p className="text-xs text-text-muted mt-0.5">
-                No heartbeat recently. Paid jobs at that kiosk will wait until it reconnects.
+                No heartbeat recently. Paid jobs at that QR point wait for another free printer there, or until it reconnects.
               </p>
             </Card>
           )}
           {unenrolledKiosks.length > 0 && (
             <Card className="p-4 border-warning/40 bg-warning/5">
               <p className="font-bold text-text">
-                {unenrolledKiosks.length} {unenrolledKiosks.length === 1 ? 'kiosk has' : 'kiosks have'} no
+                {unenrolledKiosks.length} {unenrolledKiosks.length === 1 ? 'QR point has' : 'QR points have'} no
                 printer
               </p>
               <p className="text-xs text-text-muted mt-0.5">
@@ -156,115 +213,22 @@ export default function PrintersPage() {
         </div>
       )}
 
-      {/* ---------------- Printers ---------------- */}
-      <Card>
-        <CardHeader title="Printers" subtitle={printerSubtitle(printerList)} />
-
-        {printers.error ? (
+      {/* ---------------- Printers ----------------
+          Grouped into one box per partner when looking across all of them, so
+          the fleet reads as "who has what" rather than one long list. Scoped
+          to a single partner, the grouping would be a box around everything. */}
+      {printers.error ? (
+        <Card>
           <ErrorState message={printers.error} onRetry={printers.reload} />
-        ) : printers.loading ? (
+        </Card>
+      ) : printers.loading ? (
+        <Card>
+          <CardHeader title="Printers" subtitle="Loading…" />
           <SkeletonRows rows={3} />
-        ) : printerList.length ? (
-          <ul className="divide-y divide-border">
-            {printerList.map((p) => {
-              const revoked = p.status === 'revoked';
-              return (
-                <li key={p.printerId} className={`p-4 sm:p-5 ${revoked ? 'opacity-70' : ''}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <span
-                        aria-hidden="true"
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          p.status === 'online' && !p.silent
-                            ? 'bg-success/10 text-success'
-                            : revoked
-                              ? 'bg-text-muted/10 text-text-muted'
-                              : 'bg-error/10 text-error'
-                        }`}
-                      >
-                        <Icon name="printer" className="w-5 h-5" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-text truncate">{p.name}</p>
-                        <p className="text-xs text-text-muted truncate">
-                          {p.kiosk.code} · {p.kiosk.name}
-                          {showShop && p.organization ? ` · ${p.organization.name}` : ''}
-                        </p>
-                        <p className="text-xs text-text-muted font-mono truncate mt-0.5">
-                          {p.printerId}
-                        </p>
-                      </div>
-                    </div>
-                    <StatusPill status={p.status} />
-                  </div>
-
-                  <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <Metric
-                      label="Last heartbeat"
-                      value={
-                        revoked
-                          ? '-'
-                          : p.secondsSinceHeartbeat !== null
-                            ? relativeAge(p.secondsSinceHeartbeat)
-                            : 'never'
-                      }
-                      warn={p.silent}
-                      title={dateTime(p.lastHeartbeat)}
-                    />
-                    <Metric label="Active jobs" value={String(p.activeJobs)} />
-                    <Metric
-                      label="Paper"
-                      value={p.paperLevel !== null ? `${p.paperLevel}%` : 'unknown'}
-                      warn={p.paperLevel !== null && p.paperLevel < 15}
-                    />
-                    <Metric
-                      label="Toner"
-                      value={p.inkLevelBlack !== null ? `${p.inkLevelBlack}%` : 'unknown'}
-                      warn={p.inkLevelBlack !== null && p.inkLevelBlack < 15}
-                    />
-                  </dl>
-
-                  <p className="mt-2 text-xs text-text-muted">
-                    {p.capabilities.color ? 'Colour' : 'Black & white only'}
-                    {p.capabilities.doubleSided ? ' · double-sided' : ' · single-sided only'}
-                  </p>
-
-                  {isSuper && (
-                    <p className="mt-1 text-xs text-text-muted">
-                      {revoked ? (
-                        <>Revoked {dateOnly(p.enrollment.revokedAt)}</>
-                      ) : p.enrollment.keyPrefix ? (
-                        <>
-                          Key <span className="font-mono">{p.enrollment.keyPrefix}…</span> issued{' '}
-                          {dateOnly(p.enrollment.keyIssuedAt)}
-                          {p.enrollment.lastSeenIp ? ` · last seen from ${p.enrollment.lastSeenIp}` : ''}
-                        </>
-                      ) : (
-                        <>No key issued</>
-                      )}
-                    </p>
-                  )}
-
-                  {(isSuper || (canManage && !revoked)) && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {isSuper && (
-                        <Button size="sm" variant="secondary" onClick={() => rotate(p)}>
-                          <Icon name="key" className="w-4 h-4" />
-                          {revoked ? 'Restore with new key' : 'Rotate key'}
-                        </Button>
-                      )}
-                      {canManage && !revoked && (
-                        <Button size="sm" variant="ghost" className="text-error" onClick={() => revoke(p)}>
-                          Revoke
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
+        </Card>
+      ) : printerList.length === 0 ? (
+        <Card>
+          <CardHeader title="Printers" subtitle="None yet" />
           <EmptyState
             title="No printers enrolled"
             message={
@@ -281,12 +245,82 @@ export default function PrintersPage() {
               ) : undefined
             }
           />
-        )}
-      </Card>
+        </Card>
+      ) : showShop ? (
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <Card key={group.key}>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 px-4 pt-4 pb-3 sm:px-5 sm:pt-5">
+                <div className="min-w-0 order-2 sm:order-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {group.orgId ? (
+                      <Link
+                        href={`/organizations/${group.orgId}`}
+                        className="text-[15px] font-semibold text-text hover:text-accent hover:underline truncate"
+                      >
+                        {group.name}
+                      </Link>
+                    ) : (
+                      <h2 className="text-[15px] font-semibold text-text truncate">{group.name}</h2>
+                    )}
+                    <ModelBadge id={group.businessModel} />
+                  </div>
+                  <p className="text-xs sm:text-[13px] text-text-muted mt-0.5">
+                    {fleetSummary(group.printers)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0 order-1 sm:order-2">
+                  {group.stations > 0 && (
+                    <CountChip icon="building" label="station" count={group.stations} />
+                  )}
+                  {group.standalone > 0 && (
+                    <CountChip icon="printer" label="printer" count={group.standalone} />
+                  )}
+                </div>
+              </div>
 
-      {/* ---------------- Kiosks ---------------- */}
+              <ul className="divide-y divide-border border-t border-border">
+                {group.printers.map((p) => (
+                  <PrinterItem
+                    key={p.printerId}
+                    printer={p}
+                    isSuper={Boolean(isSuper)}
+                    canManage={canManage}
+                    showShop={false}
+                    onRotate={rotate}
+                    onRevoke={revoke}
+                    onEdit={setEditPrinter}
+                  />
+                ))}
+              </ul>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardHeader title="Printers" subtitle={printerSubtitle(printerList)} />
+          <ul className="divide-y divide-border">
+            {printerList.map((p) => (
+              <PrinterItem
+                key={p.printerId}
+                printer={p}
+                isSuper={Boolean(isSuper)}
+                canManage={canManage}
+                showShop={false}
+                onRotate={rotate}
+                onRevoke={revoke}
+                onEdit={setEditPrinter}
+              />
+            ))}
+          </ul>
+        </Card>
+      )}
+      {/* ---------------- QR points ---------------- */}
       <Card>
-        <CardHeader title="Kiosks" subtitle={`${kiosks.data?.count ?? 0} total`} />
+        <CardHeader
+          title="QR points"
+          subtitle={`${kiosks.data?.count ?? 0} total · one QR code each; jobs print on whichever printer there is free`}
+        />
         {kiosks.error ? (
           <ErrorState message={kiosks.error} onRetry={kiosks.reload} />
         ) : kiosks.loading ? (
@@ -328,12 +362,12 @@ export default function PrintersPage() {
           </ul>
         ) : (
           <EmptyState
-            title="No kiosks yet"
+            title="No QR points yet"
             icon={<Icon name="building" className="w-6 h-6" />}
             action={
               isSuper ? (
                 <Button size="sm" onClick={() => setAddKiosk(true)}>
-                  Add a kiosk
+                  Add a QR point
                 </Button>
               ) : undefined
             }
@@ -350,7 +384,7 @@ export default function PrintersPage() {
             onClose={() => setAddKiosk(false)}
             onCreated={() => {
               setAddKiosk(false);
-              setToast({ message: 'Kiosk added. Enroll a printer for it next.', tone: 'success' });
+              setToast({ message: 'QR point added. Enroll a printer for it next.', tone: 'success' });
               reloadAll();
             }}
           />
@@ -372,16 +406,215 @@ export default function PrintersPage() {
         onClose={() => setEditKiosk(null)}
         onSaved={() => {
           setEditKiosk(null);
-          setToast({ message: 'Kiosk updated', tone: 'success' });
+          setToast({ message: 'QR point updated', tone: 'success' });
           kiosks.reload();
         }}
       />
 
       <PrinterKeyModal secret={secret} onClose={() => setSecret(null)} />
 
+      <EditPrinterModal
+        printer={editPrinter}
+        onClose={() => setEditPrinter(null)}
+        onSaved={(label: string) => {
+          setEditPrinter(null);
+          setToast({ message: `${label} updated`, tone: 'success' });
+          reloadAll();
+        }}
+      />
+
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
     </div>
   );
+}
+
+/**
+ * One printer in the fleet list.
+ *
+ * A station is shown by its station name and a "Station" badge, but it is the
+ * same row with the same printer id underneath: a station contains exactly one
+ * printer, and that printer is what heartbeats, queues and earns.
+ */
+function PrinterItem({
+  printer: p,
+  isSuper,
+  canManage,
+  showShop,
+  onRotate,
+  onRevoke,
+  onEdit,
+}: {
+  printer: PrinterRow;
+  isSuper: boolean;
+  canManage: boolean;
+  showShop: boolean;
+  onRotate: (p: PrinterRow) => void;
+  onRevoke: (p: PrinterRow) => void;
+  onEdit: (p: PrinterRow) => void;
+}) {
+  const revoked = p.status === 'revoked';
+  const station = p.station.isStation;
+
+  return (
+    <li className={`p-4 sm:p-5 ${revoked ? 'opacity-70' : ''}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <span
+            aria-hidden="true"
+            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              p.status === 'online' && !p.silent
+                ? 'bg-success/10 text-success'
+                : revoked
+                  ? 'bg-text-muted/10 text-text-muted'
+                  : 'bg-error/10 text-error'
+            }`}
+          >
+            <Icon name={station ? 'building' : 'printer'} className="w-5 h-5" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-text truncate">{p.station.label}</p>
+              <StationBadge isStation={station} />
+            </div>
+            <p className="text-xs text-text-muted truncate">
+              {p.kiosk.code} · {p.kiosk.name}
+              {showShop && p.organization ? ` · ${p.organization.name}` : ''}
+            </p>
+            <p className="text-xs text-text-muted font-mono truncate mt-0.5">
+              {p.printerId}
+              {/* The printer's own name still matters when the station is
+                  named something else: it is what the Pi reports. */}
+              {station && p.station.name ? ` · printer "${p.name}"` : ''}
+            </p>
+          </div>
+        </div>
+        <StatusPill status={p.status} />
+      </div>
+
+      <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <Metric
+          label="Last heartbeat"
+          value={
+            revoked
+              ? '-'
+              : p.secondsSinceHeartbeat !== null
+                ? relativeAge(p.secondsSinceHeartbeat)
+                : 'never'
+          }
+          warn={p.silent}
+          title={dateTime(p.lastHeartbeat)}
+        />
+        <Metric label="Active jobs" value={String(p.activeJobs)} />
+        <Metric
+          label="Paper"
+          value={p.paperLevel !== null ? `${p.paperLevel}%` : 'unknown'}
+          warn={p.paperLevel !== null && p.paperLevel < 15}
+        />
+        <Metric
+          label="Toner"
+          value={p.inkLevelBlack !== null ? `${p.inkLevelBlack}%` : 'unknown'}
+          warn={p.inkLevelBlack !== null && p.inkLevelBlack < 15}
+        />
+      </dl>
+
+      <p className="mt-2 text-xs text-text-muted">
+        {p.capabilities.color ? 'Colour' : 'Black & white only'}
+        {p.capabilities.doubleSided ? ' · double-sided' : ' · single-sided only'}
+      </p>
+
+      {isSuper && (
+        <p className="mt-1 text-xs text-text-muted">
+          {revoked ? (
+            <>Revoked {dateOnly(p.enrollment.revokedAt)}</>
+          ) : p.enrollment.keyPrefix ? (
+            <>
+              Key <span className="font-mono">{p.enrollment.keyPrefix}…</span> issued{' '}
+              {dateOnly(p.enrollment.keyIssuedAt)}
+              {p.enrollment.lastSeenIp ? ` · last seen from ${p.enrollment.lastSeenIp}` : ''}
+            </>
+          ) : (
+            <>No key issued</>
+          )}
+        </p>
+      )}
+
+      {(isSuper || (canManage && !revoked)) && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {isSuper && (
+            <Button size="sm" variant="secondary" onClick={() => onEdit(p)}>
+              <Icon name="cog" className="w-4 h-4" />
+              Edit
+            </Button>
+          )}
+          {isSuper && (
+            <Button size="sm" variant="secondary" onClick={() => onRotate(p)}>
+              <Icon name="key" className="w-4 h-4" />
+              {revoked ? 'Restore with new key' : 'Rotate key'}
+            </Button>
+          )}
+          {canManage && !revoked && (
+            <Button size="sm" variant="ghost" className="text-error" onClick={() => onRevoke(p)}>
+              Revoke
+            </Button>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** Says whether a unit is an MPrnt station or the partner's own printer. */
+function StationBadge({ isStation }: { isStation: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap ${
+        isStation ? 'bg-accent/10 text-accent' : 'bg-text-muted/10 text-text-muted'
+      }`}
+      title={
+        isStation
+          ? 'An MPrnt station. The printer inside it is this row.'
+          : 'The partner’s own printer, connected to MPrnt.'
+      }
+    >
+      {isStation ? 'Station' : 'Printer'}
+    </span>
+  );
+}
+
+/** Compact "2 stations" / "1 printer" counter for a partner's box header. */
+function CountChip({
+  icon,
+  label,
+  count,
+}: {
+  icon: React.ComponentProps<typeof Icon>['name'];
+  label: string;
+  count: number;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface-secondary text-xs font-medium text-text-muted whitespace-nowrap">
+      <Icon name={icon} className="w-3.5 h-3.5" />
+      <span className="tabular font-semibold text-text">{count}</span>
+      {count === 1 ? label : `${label}s`}
+    </span>
+  );
+}
+
+/** "3 of 4 online · 1 station, 2 printers" for a partner's box header. */
+function fleetSummary(list: PrinterRow[]): string {
+  const live = list.filter((p) => p.status !== 'revoked');
+  // "Busy" means mid-job, which is a working printer, so it counts as online.
+  // Only silence or a reported offline state means work cannot reach it.
+  const reachable = live.filter(
+    (p) => (p.status === 'online' || p.status === 'busy') && !p.silent
+  ).length;
+  const printing = live.filter((p) => p.status === 'busy').length;
+  const revoked = list.length - live.length;
+
+  const parts = [`${reachable} of ${live.length} online`];
+  if (printing > 0) parts.push(`${printing} printing`);
+  if (revoked > 0) parts.push(`${revoked} revoked`);
+  return parts.join(' · ');
 }
 
 function Metric({

@@ -43,6 +43,28 @@ function resolveApiBase(): string {
 
 export const API_BASE = resolveApiBase();
 
+/**
+ * The backend this dev server is pointed at, when that is somewhere other than
+ * this machine.
+ *
+ * Only ever set while running a development build: `.env.local` points at the
+ * production API, so `npm run dev` talks to real data with nothing on screen
+ * saying so. A deployed production build returns null — there the backend is
+ * meant to be production, and a permanent banner would be noise.
+ */
+export function remoteApiHost(): string | null {
+  if (process.env.NODE_ENV === 'production') return null;
+
+  try {
+    const host = new URL(API_BASE).hostname;
+    const local =
+      host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+    return local ? null : host;
+  } catch {
+    return null;
+  }
+}
+
 const isProduction = process.env.NODE_ENV === 'production';
 
 const baseCookie = {

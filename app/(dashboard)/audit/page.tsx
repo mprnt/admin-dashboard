@@ -8,6 +8,7 @@ import { buildQuery, type AuditRow } from '@/lib/api';
 import { dateTime, titleCase } from '@/lib/format';
 import { Card, CardHeader, EmptyState, ErrorState, SkeletonRows, Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { OrgSwitcher } from '@/components/OrgSwitcher';
 
 const PAGE_SIZE = 50;
 
@@ -67,13 +68,16 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Audit log</h1>
-        <p className="text-sm text-text-muted mt-1.5">
-          {isSuper
-            ? `Every administrative change${org ? ` concerning ${org.name}` : ' across all shops'}`
-            : "Changes made by your shop's staff, and sign-in activity on their accounts"}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="page-title">Audit log</h1>
+          <p className="text-sm text-text-muted mt-1.5">
+            {isSuper
+              ? `Every administrative change${org ? ` concerning ${org.name}` : ' across all partners'}`
+              : "Changes made by your shop's staff, and sign-in activity on their accounts"}
+          </p>
+        </div>
+        <OrgSwitcher />
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -116,7 +120,7 @@ export default function AuditPage() {
               >
                 <option value="everyone">Everyone</option>
                 <option value="platform">MPrnt (platform)</option>
-                <option value="shop">Shop staff</option>
+                <option value="shop">Partner staff</option>
               </select>
             </div>
           )}
@@ -168,7 +172,9 @@ export default function AuditPage() {
                               : 'border-border text-text-muted'
                           }`}
                         >
-                          {entry.actorScope === 'platform' ? 'MPrnt' : 'Shop'}
+                          {/* A super admin is looking across partners; shop staff are looking
+                              at their own colleagues, for whom "Partner" would be odd. */}
+                          {entry.actorScope === 'platform' ? 'MPrnt' : isSuper ? 'Partner' : 'Shop'}
                         </span>
                       )}
                     </div>

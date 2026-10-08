@@ -26,6 +26,7 @@ import {
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { RevenueChart } from '@/components/RevenueChart';
 import { Icon } from '@/components/Icon';
+import { OrgSwitcher } from '@/components/OrgSwitcher';
 import type { AttentionRow, PrinterRow } from '@/lib/api';
 
 export default function OverviewPage() {
@@ -60,13 +61,16 @@ export default function OverviewPage() {
       <PageHeader
         eyebrow={greeting.date ? `${greeting.hello} · ${greeting.date}` : '\u00a0'}
         title="Overview"
-        subtitle="Here’s how your kiosks are doing."
+        subtitle="Here’s how your QR points are doing."
         actions={
-          <PeriodFilter
-            value={period}
-            onChange={setPeriod}
-            timezone={summary.data?.range.timezone}
-          />
+          <>
+            <OrgSwitcher />
+            <PeriodFilter
+              value={period}
+              onChange={setPeriod}
+              timezone={summary.data?.range.timezone}
+            />
+          </>
         }
       />
 
@@ -97,7 +101,7 @@ export default function OverviewPage() {
                 tone="error"
                 icon="printer"
                 title={`${offline} ${offline === 1 ? 'printer' : 'printers'} offline`}
-                body="Jobs cannot be printed while a kiosk has no printer online."
+                body="Jobs cannot be printed while a QR point has no printer online."
               />
             )}
             {lowPaper > 0 && (

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Shell } from '@/components/Shell';
 import { ScopeProvider } from '@/lib/scope';
-import { getProfile } from '@/lib/session';
+import { getProfile, remoteApiHost } from '@/lib/session';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const profile = getProfile();
@@ -12,7 +12,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ScopeProvider enabled={profile.role === 'super_admin'}>
-      <Shell profile={profile}>{children}</Shell>
+      <Shell profile={profile} remoteApi={remoteApiHost()}>
+        {children}
+      </Shell>
     </ScopeProvider>
   );
 }

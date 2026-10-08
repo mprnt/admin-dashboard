@@ -19,6 +19,8 @@ import {
   SkeletonRows,
 } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { ContactLine } from '@/components/ContactSupport';
+import { OrgSwitcher } from '@/components/OrgSwitcher';
 
 /**
  * Paid jobs that have not printed.
@@ -45,11 +47,14 @@ export default function AttentionPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Needs attention</h1>
-        <p className="text-sm text-text-muted mt-1.5">
-          Jobs that were paid for but have not finished printing
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="page-title">Needs attention</h1>
+          <p className="text-sm text-text-muted mt-1.5">
+            Jobs that were paid for but have not finished printing
+          </p>
+        </div>
+        <OrgSwitcher />
       </div>
 
       {refundCandidates > 0 && (
@@ -130,10 +135,13 @@ export default function AttentionPage() {
                       </Button>
                     </div>
                   ) : (
-                    <p className="mt-3 text-xs text-text-muted flex items-center gap-1.5">
-                      <Icon name="shield" className="w-3.5 h-3.5 flex-shrink-0" />
-                      For a refund, contact your MPrnt administrator and quote the job ID above.
-                    </p>
+                    <ContactLine
+                      className="mt-3"
+                      subject={`Refund request: job ${job.jobId}`}
+                      body={`Job ID: ${job.jobId}\nKiosk: ${job.kiosk.code}\nAmount: ${currency(job.amount)}\nPaid: ${dateTime(job.createdAt)}\n\nPlease refund this customer.`}
+                    >
+                      For a refund, contact MPrnt:
+                    </ContactLine>
                   ))}
               </li>
             ))}
@@ -234,7 +242,7 @@ function RefundModal({
           )}
 
           <p className="text-sm text-text-muted">
-            The customer gets back the full {currency(job.amount)} they paid at kiosk{' '}
+            The customer gets back the full {currency(job.amount)} they paid at QR point{' '}
             {job.kiosk.code}. The job is cancelled and will not print.
           </p>
 

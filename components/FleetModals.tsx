@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import { api, ApiError, type KioskRow, type OrganizationRow } from '@/lib/api';
+import { api, ApiError, type KioskRow, type OrganizationRow, type PrinterRow } from '@/lib/api';
 import { Button, Field, Modal, inputClass } from '@/components/ui';
+import { ModelField } from '@/components/BusinessModel';
+import type { BusinessModelId } from '@/lib/businessModels';
 
 /**
- * Dialogs for managing shops, kiosks and printers. Shared by the
- * organizations list, a shop's detail page and the printers page.
+ * Dialogs for managing partners, QR points and printers. Shared by the
+ * partners list, a partner's detail page and the printers page.
  */
 
 function FormError({ message }: { message: string | null }) {
@@ -64,6 +66,7 @@ export function CreateOrgModal({
   onCreated: () => void;
 }) {
   const [name, setName] = React.useState('');
+  const [model, setModel] = React.useState<BusinessModelId | ''>('');
   const [timezone, setTimezone] = React.useState('Asia/Kolkata');
   const [contactEmail, setContactEmail] = React.useState('');
   const { error, setError, saving, run } = useSubmit(onCreated);
@@ -71,24 +74,30 @@ export function CreateOrgModal({
   React.useEffect(() => {
     if (open) {
       setName('');
+      setModel('');
       setContactEmail('');
       setError(null);
     }
   }, [open, setError]);
 
   return (
-    <Modal open={open} title="New organization" onClose={onClose}>
+    <Modal open={open} title="New partner" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           void run(() =>
-            api.post('/organizations', { name, timezone, contactEmail: contactEmail || undefined })
+            api.post('/organizations', {
+              name,
+              businessModel: model || undefined,
+              timezone,
+              contactEmail: contactEmail || undefined,
+            })
           );
         }}
         className="space-y-4"
       >
         <FormError message={error} />
-        <Field label="Shop name" htmlFor="org-name">
+        <Field label="Partner name" htmlFor="org-name">
           <input
             id="org-name"
             required
@@ -98,6 +107,7 @@ export function CreateOrgModal({
             placeholder="Sharma Xerox"
           />
         </Field>
+        <ModelField value={model} onChange={setModel} id="org-model" />
         <Field
           label="Timezone"
           htmlFor="org-tz"
@@ -160,7 +170,7 @@ export function AssignKioskModal({
   const candidates = kiosks.filter((k) => k.organizationId !== org?.id);
 
   return (
-    <Modal open={Boolean(org)} title={`Move a kiosk to ${org?.name ?? ''}`} onClose={onClose}>
+    <Modal open={Boolean(org)} title={`Move a QR point to ${org?.name ?? ''}`} onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -170,9 +180,9 @@ export function AssignKioskModal({
       >
         <FormError message={error} />
         <Field
-          label="Kiosk"
+          label="QR point"
           htmlFor="assign-kiosk"
-          hint="New jobs on this kiosk will belong to this shop. Revenue already earned stays with the shop that earned it."
+          hint="New jobs at this QR point will belong to this partner. Revenue already earned stays with the partner that earned it."
         >
           <select
             id="assign-kiosk"
@@ -181,7 +191,7 @@ export function AssignKioskModal({
             onChange={(e) => setKioskId(e.target.value)}
             className={inputClass}
           >
-            <option value="">Select a kiosk…</option>
+            <option value="">Select a QR point…</option>
             {candidates.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.kioskId} - {k.name}
@@ -192,7 +202,7 @@ export function AssignKioskModal({
         </Field>
         <div className="flex gap-2">
           <Button type="submit" loading={saving} disabled={!kioskId} className="flex-1">
-            Move kiosk
+            Move QR point
           </Button>
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
@@ -239,7 +249,7 @@ export function CreateKioskModal({
   }, [open, defaultOrgId, organizations, setError]);
 
   return (
-    <Modal open={open} title="Add a kiosk" onClose={onClose}>
+    <Modal open={open} title="Add a QR point" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -256,8 +266,12 @@ export function CreateKioskModal({
         className="space-y-4"
       >
         <FormError message={error} />
+        <p className="text-xs text-text-muted">
+          A QR point is one place customers scan — a counter, a floor, a room. Enroll as many
+          printers to it as that area has; each paid job goes to whichever of them is free.
+        </p>
         <Field
-          label="Kiosk code"
+          label="QR point code"
           htmlFor="k-code"
           hint="2–10 letters or digits. This is what the QR code points at - it cannot be changed later."
         >
@@ -291,7 +305,7 @@ export function CreateKioskModal({
             placeholder="Library, ground floor"
           />
         </Field>
-        <Field label="Shop" htmlFor="k-org">
+        <Field label="Partner" htmlFor="k-org">
           <select
             id="k-org"
             required
@@ -329,7 +343,7 @@ export function CreateKioskModal({
         </fieldset>
         <div className="flex gap-2 pt-1">
           <Button type="submit" loading={saving} disabled={!organizationId} className="flex-1">
-            Add kiosk
+            Add QR point
           </Button>
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
@@ -397,7 +411,7 @@ export function EditKioskModal({
           hint={
             status === 'active'
               ? 'Customers can scan and print.'
-              : 'Customers who scan this kiosk are told it is unavailable, and cannot start a session.'
+              : 'Customers who scan this QR point are told it is unavailable, and cannot start a session.'
           }
         >
           <select
@@ -446,6 +460,8 @@ export function EnrollPrinterModal({
   const [name, setName] = React.useState('');
   const [color, setColor] = React.useState(false);
   const [duplex, setDuplex] = React.useState(true);
+  const [isStation, setIsStation] = React.useState(false);
+  const [stationName, setStationName] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
@@ -456,6 +472,8 @@ export function EnrollPrinterModal({
       const initial = defaultKioskId ?? kiosks[0]?.id ?? '';
       setKioskId(initial);
       setName('');
+      setIsStation(false);
+      setStationName('');
       setError(null);
     }
   }, [open, defaultKioskId, kiosks]);
@@ -471,13 +489,15 @@ export function EnrollPrinterModal({
       const res = await api.post<{ printerId: string; apiKey: string }>('/printers/enroll', {
         printerId,
         kioskId,
-        name: name || `${kiosk?.name ?? 'Kiosk'} printer`,
+        name: name || `${kiosk?.name ?? 'QR point'} printer`,
         capabilities: {
           supportsColor: color,
           supportsDoubleSided: duplex,
           maxCopies: 50,
           supportedPaperSizes: ['a4'],
         },
+        isStation,
+        stationName: isStation ? stationName || undefined : undefined,
       });
       onEnrolled(res.printerId, res.apiKey);
     } catch (err) {
@@ -491,7 +511,7 @@ export function EnrollPrinterModal({
     <Modal open={open} title="Enroll a printer" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <FormError message={error} />
-        <Field label="Kiosk" htmlFor="ep-kiosk">
+        <Field label="QR point" htmlFor="ep-kiosk">
           <select
             id="ep-kiosk"
             required
@@ -520,6 +540,13 @@ export function EnrollPrinterModal({
             className={`${inputClass} font-mono`}
           />
         </Field>
+        <StationFields
+          isStation={isStation}
+          stationName={stationName}
+          onIsStation={setIsStation}
+          onStationName={setStationName}
+          idPrefix="ep"
+        />
         <Field label="Name" htmlFor="ep-name" hint="Optional">
           <input
             id="ep-name"
@@ -637,6 +664,159 @@ export function PrinterKeyModal({
           </div>
         </div>
       )}
+    </Modal>
+  );
+}
+
+/**
+ * Whether this printer is housed in an MPrnt station, and what the partner
+ * calls it.
+ *
+ * Both are labels on the printer. A station contains exactly one printer, so
+ * there is nothing else for them to hang off: jobs, queue and revenue all stay
+ * keyed on the printer whichever way this is set.
+ */
+export function StationFields({
+  isStation,
+  stationName,
+  onIsStation,
+  onStationName,
+  idPrefix,
+}: {
+  isStation: boolean;
+  stationName: string;
+  onIsStation: (value: boolean) => void;
+  onStationName: (value: string) => void;
+  idPrefix: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border p-3 space-y-3">
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={isStation}
+          onChange={(e) => onIsStation(e.target.checked)}
+          className="mt-0.5 w-4 h-4 accent-[rgb(var(--color-primary))]"
+        />
+        <span className="min-w-0">
+          <span className="block text-[13px] font-medium text-text">
+            This printer is inside an MPrnt station
+          </span>
+          <span className="block text-xs text-text-muted mt-0.5">
+            Changes what the dashboard calls it. Everything else — jobs, queue, revenue — stays
+            on the printer either way.
+          </span>
+        </span>
+      </label>
+
+      {isStation && (
+        <Field
+          label="Station name"
+          htmlFor={`${idPrefix}-station-name`}
+          hint="Optional. What the partner calls this unit, e.g. “Front desk”."
+        >
+          <input
+            id={`${idPrefix}-station-name`}
+            value={stationName}
+            onChange={(e) => onStationName(e.target.value)}
+            className={inputClass}
+            placeholder="Front desk"
+            maxLength={100}
+          />
+        </Field>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Rename a printer, or change whether it is presented as a station.
+ *
+ * Platform-only: whether MPrnt supplied the hardware is a commercial fact, not
+ * something a partner declares about itself. The backend enforces that too.
+ */
+export function EditPrinterModal({
+  printer,
+  onClose,
+  onSaved,
+}: {
+  printer: PrinterRow | null;
+  onClose: () => void;
+  onSaved: (label: string) => void;
+}) {
+  const [name, setName] = React.useState('');
+  const [isStation, setIsStation] = React.useState(false);
+  const [stationName, setStationName] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!printer) return;
+    setName(printer.name);
+    setIsStation(printer.station.isStation);
+    setStationName(printer.station.name ?? '');
+    setError(null);
+  }, [printer]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!printer) return;
+    setError(null);
+    setSaving(true);
+    try {
+      await api.patch(`/printers/${encodeURIComponent(printer.printerId)}`, {
+        name,
+        isStation,
+        // Sent as empty rather than omitted so clearing the name actually
+        // clears it; the backend maps '' to NULL.
+        stationName: isStation ? stationName : '',
+      });
+      onSaved(isStation ? stationName || name : name);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not update the printer');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={Boolean(printer)} title="Edit printer" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <FormError message={error} />
+
+        <p className="text-xs text-text-muted font-mono break-all">{printer?.printerId}</p>
+
+        <Field
+          label="Printer name"
+          htmlFor="edp-name"
+          hint="What the hardware is called. Shown on its own unless this is a named station."
+        >
+          <input
+            id="edp-name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+
+        <StationFields
+          isStation={isStation}
+          stationName={stationName}
+          onIsStation={setIsStation}
+          onStationName={setStationName}
+          idPrefix="edp"
+        />
+
+        <div className="flex gap-2 justify-end">
+          <Button type="button" variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" size="sm" loading={saving}>
+            Save
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 }

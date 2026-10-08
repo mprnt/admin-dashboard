@@ -27,14 +27,18 @@ import {
   CardHeader,
   EmptyState,
   ErrorState,
+  Modal,
   SkeletonRows,
   Stat,
   StatusPill,
   Toast,
+  inputClass,
 } from '@/components/ui';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { RevenueChart } from '@/components/RevenueChart';
 import { Icon } from '@/components/Icon';
+import { ModelBadge, ModelField } from '@/components/BusinessModel';
+import { businessModel, type BusinessModelId } from '@/lib/businessModels';
 import {
   AssignKioskModal,
   CreateKioskModal,
@@ -54,7 +58,7 @@ function pctChange(current: number, previous: number): number | null {
 }
 
 /**
- * One shop, from the platform's side: the same figures its owner sees, plus
+ * One partner, from the platform's side: the same figures its owner sees, plus
  * the controls only the platform holds.
  */
 export default function OrganizationDetailPage() {
@@ -68,19 +72,24 @@ export default function OrganizationDetailPage() {
   const [addKiosk, setAddKiosk] = React.useState(false);
   const [moveKiosk, setMoveKiosk] = React.useState(false);
   const [editKiosk, setEditKiosk] = React.useState<KioskRow | null>(null);
+  const [modelOpen, setModelOpen] = React.useState(false);
+  /** '' = the whole partner; otherwise one printer's printer_id. */
+  const [device, setDevice] = React.useState('');
 
   const q = (extra: Record<string, string | number | undefined> = {}) =>
     buildQuery({ organizationId: id, ...extra });
 
   const org = useApi<OrganizationRow>(`/organizations/${id}`, [], { unscoped: true });
   const summary = useApi<{ range: Range; summary: Summary; comparison: Comparison | null }>(
-    `/reports/summary${q({ period })}`,
-    [],
+    `/reports/summary${q({ period, printerId: device || undefined })}`,
+    [device],
     { unscoped: true }
   );
-  const series = useApi<{ series: SeriesPoint[] }>(`/reports/series${q({ period })}`, [], {
-    unscoped: true,
-  });
+  const series = useApi<{ series: SeriesPoint[] }>(
+    `/reports/series${q({ period, printerId: device || undefined })}`,
+    [device],
+    { unscoped: true }
+  );
   const kiosks = useApi<{ kiosks: KioskRow[] }>(`/kiosks${q()}`, [], { unscoped: true });
   const allKiosks = useApi<{ kiosks: KioskRow[] }>('/kiosks', [], { unscoped: true });
   const printers = useApi<{ printers: PrinterRow[] }>(`/printers${q()}`, [], { unscoped: true });
@@ -91,6 +100,8 @@ export default function OrganizationDetailPage() {
 
   const o = org.data;
   const s = summary.data?.summary;
+  const fleet = printers.data?.printers ?? [];
+  const selected = fleet.find((p) => p.printerId === device) ?? null;
   const cmp = summary.data?.comparison ?? null;
   const trendLabel = TREND_LABEL[period];
 
@@ -120,7 +131,7 @@ export default function OrganizationDetailPage() {
           href="/organizations"
           className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text min-h-[32px]"
         >
-          <span aria-hidden="true">←</span> All shops
+          <span aria-hidden="true">←</span> All partners
         </Link>
 
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mt-1">
@@ -131,6 +142,7 @@ export default function OrganizationDetailPage() {
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="page-title truncate">{o?.name}</h1>
                 {o && <StatusPill status={o.status} />}
+                {o && <ModelBadge id={o.businessModel} />}
               </div>
             )}
             {o && (
@@ -143,6 +155,10 @@ export default function OrganizationDetailPage() {
 
           {o && (
             <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setModelOpen(true)}>
+                <Icon name="tag" className="w-4 h-4" />
+                Change model
+              </Button>
               <Button
                 size="sm"
                 variant="secondary"
@@ -163,7 +179,9 @@ export default function OrganizationDetailPage() {
                       api.post(`/organizations/${o.id}/status`, {
                         status: o.status === 'active' ? 'suspended' : 'active',
                       }),
-                    o.status === 'active' ? 'Shop suspended - its staff were signed out' : 'Shop reactivated'
+                    o.status === 'active'
+                      ? 'Partner suspended - its staff were signed out'
+                      : 'Partner reactivated'
                   )
                 }
               >
@@ -176,10 +194,10 @@ export default function OrganizationDetailPage() {
                 onClick={() => {
                   if (
                     confirm(
-                      `Delete ${o.name}? Its staff are signed out and lose access. Move its kiosks elsewhere first - deletion is refused while it still has any.`
+                      `Delete ${o.name}? Its staff are signed out and lose access. Move its QR points elsewhere first - deletion is refused while it still has any.`
                     )
                   ) {
-                    void act(() => api.del(`/organizations/${o.id}`), 'Shop deleted', () =>
+                    void act(() => api.del(`/organizations/${o.id}`), 'Partner deleted', () =>
                       router.push('/organizations')
                     );
                   }
@@ -195,13 +213,30 @@ export default function OrganizationDetailPage() {
       {o?.status === 'suspended' && (
         <Card className="p-4 border-error/40 bg-error/5">
           <p className="text-sm text-text">
-            <span className="font-semibold">This shop is suspended.</span> Its staff cannot sign in.
+            <span className="font-semibold">This partner is suspended.</span> Its staff cannot sign in.
             Reactivate it to restore access.
           </p>
         </Card>
       )}
 
-      <PeriodFilter value={period} onChange={setPeriod} timezone={summary.data?.range.timezone} />
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <PeriodFilter value={period} onChange={setPeriod} timezone={summary.data?.range.timezone} />
+        {fleet.length > 1 && (
+          <DeviceFilter value={device} onChange={setDevice} fleet={fleet} className="lg:ml-auto" />
+        )}
+      </div>
+
+      {selected && (
+        <div className="flex items-start gap-2.5 rounded-xl bg-surface-secondary px-3.5 py-2.5 text-xs text-text-muted">
+          <Icon name="shield" className="w-4 h-4 flex-shrink-0 mt-px" />
+          <p>
+            Showing only what{' '}
+            <span className="font-medium text-text">{selected.station.label}</span> printed.
+            A paid job that never reached a printer — failed, or still queued — counts for the
+            partner but for no single device, so these figures add up to less than the total.
+          </p>
+        </div>
+      )}
 
       {summary.error ? (
         <Card>
@@ -271,11 +306,11 @@ export default function OrganizationDetailPage() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Kiosks */}
+        {/* QR points */}
         <Card>
           <CardHeader
-            title="Kiosks"
-            subtitle={`${kiosks.data?.kiosks.length ?? 0} in this shop`}
+            title="QR points"
+            subtitle={`${kiosks.data?.kiosks.length ?? 0} for this partner`}
             action={
               <div className="flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setMoveKiosk(true)}>
@@ -315,8 +350,8 @@ export default function OrganizationDetailPage() {
             </ul>
           ) : (
             <EmptyState
-              title="No kiosks yet"
-              message="Add one, or move an existing kiosk to this shop."
+              title="No QR points yet"
+              message="Add one, or move an existing QR point to this partner."
               icon={<Icon name="building" className="w-6 h-6" />}
             />
           )}
@@ -390,7 +425,7 @@ export default function OrganizationDetailPage() {
           ) : (
             <EmptyState
               title="No staff yet"
-              message="Add an owner from the Staff page so this shop can sign in."
+              message="Add an owner from the Staff page so this partner can sign in."
               icon={<Icon name="users" className="w-6 h-6" />}
             />
           )}
@@ -439,7 +474,7 @@ export default function OrganizationDetailPage() {
         onClose={() => setAddKiosk(false)}
         onCreated={() => {
           setAddKiosk(false);
-          setToast({ message: 'Kiosk added. Enroll a printer for it next.', tone: 'success' });
+          setToast({ message: 'QR point added. Enroll a printer for it next.', tone: 'success' });
           kiosks.reload();
           allKiosks.reload();
         }}
@@ -451,7 +486,7 @@ export default function OrganizationDetailPage() {
         onClose={() => setMoveKiosk(false)}
         onAssigned={() => {
           setMoveKiosk(false);
-          setToast({ message: 'Kiosk moved to this shop', tone: 'success' });
+          setToast({ message: 'QR point moved to this partner', tone: 'success' });
           kiosks.reload();
           allKiosks.reload();
           printers.reload();
@@ -463,12 +498,89 @@ export default function OrganizationDetailPage() {
         onClose={() => setEditKiosk(null)}
         onSaved={() => {
           setEditKiosk(null);
-          setToast({ message: 'Kiosk updated', tone: 'success' });
+          setToast({ message: 'QR point updated', tone: 'success' });
           kiosks.reload();
         }}
       />
 
+      {o && (
+        <ChangeModelModal
+          open={modelOpen}
+          org={o}
+          onClose={() => setModelOpen(false)}
+          onSaved={(label) => {
+            setModelOpen(false);
+            setToast({ tone: 'success', message: `Business model set to ${label}.` });
+            org.reload();
+          }}
+          onError={(message) => setToast({ tone: 'error', message })}
+        />
+      )}
+
       {toast && <Toast message={toast.message} tone={toast.tone} onDismiss={() => setToast(null)} />}
+    </div>
+  );
+}
+
+/**
+ * Narrows the figures above to one printer or station.
+ *
+ * Only shown when a partner has more than one device: with a single machine
+ * its revenue and the partner's are the same number, and a control that
+ * cannot change anything is just noise.
+ *
+ * Grouped by QR point, because that is where a device physically sits, and a
+ * partner with four machines across two floors needs that context to tell
+ * them apart.
+ */
+function DeviceFilter({
+  value,
+  onChange,
+  fleet,
+  className = '',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  fleet: PrinterRow[];
+  className?: string;
+}) {
+  const points = React.useMemo(() => {
+    const byPoint = new Map<string, { label: string; devices: PrinterRow[] }>();
+    for (const p of fleet) {
+      const key = p.kiosk.code;
+      let entry = byPoint.get(key);
+      if (!entry) {
+        entry = { label: `${p.kiosk.code} · ${p.kiosk.name}`, devices: [] };
+        byPoint.set(key, entry);
+      }
+      entry.devices.push(p);
+    }
+    return Array.from(byPoint.values());
+  }, [fleet]);
+
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <label htmlFor="device-filter" className="text-[13px] text-text-muted whitespace-nowrap">
+        Showing
+      </label>
+      <select
+        id="device-filter"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${inputClass} min-h-[36px] py-1.5 sm:w-72`}
+      >
+        <option value="">Whole partner</option>
+        {points.map((point) => (
+          <optgroup key={point.label} label={point.label}>
+            {point.devices.map((d) => (
+              <option key={d.printerId} value={d.printerId}>
+                {d.station.label}
+                {d.station.isStation ? ' (station)' : ''}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
     </div>
   );
 }
@@ -482,7 +594,73 @@ function ScopeTag({ scope }: { scope: 'platform' | 'shop' }) {
           : 'border-border text-text-muted'
       }`}
     >
-      {scope === 'platform' ? 'MPrnt' : 'Shop'}
+      {scope === 'platform' ? 'MPrnt' : 'Partner'}
     </span>
+  );
+}
+
+/**
+ * Change which commercial model a partner is on.
+ *
+ * Separate from the other fields because it is a commercial decision, not an
+ * edit: the backend records a distinct `organization.model_changed` audit
+ * entry with the previous value, so the history says what it changed from.
+ */
+function ChangeModelModal({
+  open,
+  org,
+  onClose,
+  onSaved,
+  onError,
+}: {
+  open: boolean;
+  org: OrganizationRow;
+  onClose: () => void;
+  onSaved: (label: string) => void;
+  onError: (message: string) => void;
+}) {
+  const [model, setModel] = React.useState<BusinessModelId | ''>(org.businessModel ?? '');
+  const [saving, setSaving] = React.useState(false);
+
+  // Reopening after a change elsewhere should show the stored value, not the
+  // one left behind from last time.
+  React.useEffect(() => {
+    if (open) setModel(org.businessModel ?? '');
+  }, [open, org.businessModel]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.patch(`/organizations/${org.id}`, { businessModel: model || null });
+      onSaved(businessModel(model)?.label ?? 'none');
+    } catch (e) {
+      onError(e instanceof ApiError ? e.message : 'Could not change the business model');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} title="Change business model" onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-text-muted">
+          {org.name} is currently on <ModelBadge id={org.businessModel} className="align-middle" />.
+        </p>
+        <ModelField value={model} onChange={setModel} id="change-model" label="New model" />
+        <div className="flex gap-2 justify-end">
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            loading={saving}
+            disabled={(model || null) === (org.businessModel ?? null)}
+            onClick={() => void save()}
+          >
+            Save model
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }

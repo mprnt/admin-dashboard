@@ -4,8 +4,56 @@
     {
       "name": "mprnt-admin",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3002
+    },
+    {
+      "name": "local: backend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/akshatmahajan/mprnt-backend && CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3004 npm run dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "local: qr",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/akshatmahajan/mprnt-qr && NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1 npx next dev -p 3001"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "local: admin",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "MPRNT_API_URL=http://localhost:3000/api/v1 npx next dev -p 3002"
+      ],
+      "port": 3002
+    },
+    {
+      "name": "local: website",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/akshatmahajan/MPrnt/main && npx next dev -p 3004"
+      ],
+      "port": 3004
+    },
+    {
+      "name": "prod: admin (read-only check)",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "MPRNT_API_URL=https://backend-production-1427.up.railway.app/api/v1 npx next dev -p 3005"
+      ],
+      "port": 3005
     }
   ]
 }

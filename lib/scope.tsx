@@ -1,21 +1,26 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 
 /**
  * The organization a super admin is currently looking at.
  *
- * A super admin sees every shop by default. Choosing one here pins every page
- * to that shop - the same view its owner has - without impersonating anyone:
- * requests are still made as the super admin, just filtered, so the audit
- * trail stays truthful about who looked.
+ * A super admin sees every shop by default. Choosing one narrows the
+ * operational pages to that shop - the same view its owner has - without
+ * impersonating anyone: requests are still made as the super admin, just
+ * filtered, so the audit trail stays truthful about who looked.
+ *
+ * The filter only applies on SCOPED_ROUTES, the pages that show the picker.
+ * Elsewhere (staff, pricing, partners, leads) a remembered shop would filter
+ * data with nothing on screen saying so, which is worse than no filter.
+ *
+ * Held in memory for the session, not persisted: a shop chosen yesterday
+ * silently narrowing today's figures is exactly the surprise to avoid.
  *
  * Shop staff never see the switcher, and the backend ignores the parameter for
  * them anyway: their scope comes from their token, not from anything the
  * browser sends.
- *
- * Persisted per device in localStorage. That is a view preference, not account
- * state, so it does not need to follow the person between machines.
  */
 
 export interface ScopedOrg {
@@ -24,16 +29,24 @@ export interface ScopedOrg {
 }
 
 interface ScopeContextValue {
+  /** The chosen shop, or null when the current page is not filterable. */
   org: ScopedOrg | null;
   setOrg: (org: ScopedOrg | null) => void;
+  /** Whether the current page offers the shop filter at all. */
+  available: boolean;
 }
 
 const ScopeContext = React.createContext<ScopeContextValue>({
   org: null,
   setOrg: () => undefined,
+  available: false,
 });
 
-const STORAGE_KEY = 'mprnt-scope-org';
+/** Pages where narrowing to one shop is meaningful. Exact paths only. */
+export const SCOPED_ROUTES = ['/', '/sessions', '/printers', '/attention', '/audit'];
+
+/** Written by earlier builds; cleared so an old choice cannot resurface. */
+const LEGACY_STORAGE_KEY = 'mprnt-scope-org';
 
 export function ScopeProvider({
   enabled,
@@ -42,31 +55,22 @@ export function ScopeProvider({
   enabled: boolean;
   children: React.ReactNode;
 }) {
-  const [org, setOrgState] = React.useState<ScopedOrg | null>(null);
+  const pathname = usePathname();
+  const [org, setOrg] = React.useState<ScopedOrg | null>(null);
 
   React.useEffect(() => {
-    if (!enabled) return;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setOrgState(JSON.parse(raw) as ScopedOrg);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch {
-      // Storage unavailable (private mode, blocked site data): start unscoped.
-    }
-  }, [enabled]);
-
-  const setOrg = React.useCallback((next: ScopedOrg | null) => {
-    setOrgState(next);
-    try {
-      if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Non-fatal: the choice simply won't survive a reload.
+      // Storage unavailable: nothing to clear.
     }
   }, []);
 
+  const available = enabled && SCOPED_ROUTES.includes(pathname);
+
   const value = React.useMemo(
-    () => ({ org: enabled ? org : null, setOrg }),
-    [enabled, org, setOrg]
+    () => ({ org: available ? org : null, setOrg, available }),
+    [available, org]
   );
 
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>;

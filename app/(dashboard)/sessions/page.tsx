@@ -16,6 +16,7 @@ import {
 } from '@/components/ui';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { Icon } from '@/components/Icon';
+import { OrgSwitcher } from '@/components/OrgSwitcher';
 import { useProfile } from '@/lib/useProfile';
 
 const PAGE_SIZE = 25;
@@ -62,12 +63,15 @@ export default function SessionsPage() {
             Every print job, what it cost and whether it printed
           </p>
         </div>
-        {canExport && (
-          <Button variant="secondary" size="sm" onClick={exportCsv}>
-            <Icon name="download" className="w-4 h-4" />
-            Export CSV
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <OrgSwitcher />
+          {canExport && (
+            <Button variant="secondary" size="sm" onClick={exportCsv}>
+              <Icon name="download" className="w-4 h-4" />
+              Export CSV
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -120,7 +124,7 @@ export default function SessionsPage() {
                 <thead>
                   <tr className="text-left text-text-muted bg-surface-secondary/70 border-y border-border/70">
                     <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">When</th>
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Kiosk</th>
+                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">QR point</th>
                     <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Print</th>
                     <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Printer</th>
                     <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right">Pages</th>

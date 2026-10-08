@@ -8,6 +8,7 @@ import {
   Card, CardHeader, EmptyState, ErrorState, SkeletonRows,
   Button, Modal, Field, inputClass, Toast,
 } from '@/components/ui';
+import { ContactLine } from '@/components/ContactSupport';
 import { Icon } from '@/components/Icon';
 import { useProfile } from '@/lib/useProfile';
 
@@ -17,6 +18,16 @@ interface PricingInfo {
   minCharge: number;
   source: 'platform' | 'organization' | 'kiosk';
 }
+
+/**
+ * How a rate's reach reads on screen. The API's words are the schema's
+ * ("organization", "kiosk"); these are the business's.
+ */
+const SCOPE_LABEL: Record<string, string> = {
+  platform: 'Platform',
+  organization: 'Partner',
+  kiosk: 'QR point',
+};
 
 export default function PricingPage() {
   const profile = useProfile();
@@ -38,7 +49,7 @@ export default function PricingPage() {
         <div>
           <h1 className="page-title">Pricing</h1>
           <p className="text-sm text-text-muted mt-1.5">
-            {canWrite ? 'Rates charged to customers at each kiosk' : 'Rates that apply to your kiosks'}
+            {canWrite ? 'Rates charged to customers at each QR point' : 'Rates that apply to your QR points'}
           </p>
         </div>
         {canWrite && (
@@ -50,10 +61,9 @@ export default function PricingPage() {
       </div>
 
       {!canWrite && (
-        <p className="text-xs text-text-muted flex items-start gap-2">
-          <Icon name="shield" className="w-4 h-4 flex-shrink-0 mt-px" />
-          Pricing is set by MPrnt. Contact your MPrnt representative to discuss your rates.
-        </p>
+        <ContactLine subject="Pricing enquiry">
+          Pricing is set by MPrnt. To discuss your rates:
+        </ContactLine>
       )}
 
       <Card>
@@ -63,7 +73,7 @@ export default function PricingPage() {
           action={
             kiosks.data && kiosks.data.kiosks.length > 0 ? (
               <>
-                <label htmlFor="kiosk-select" className="sr-only">Show rates for kiosk</label>
+                <label htmlFor="kiosk-select" className="sr-only">Show rates for QR point</label>
                 <select
                   id="kiosk-select"
                   value={kioskId}
@@ -104,7 +114,9 @@ export default function PricingPage() {
             </div>
 
             <p className="text-xs text-text-muted mt-3">
-              Applied from the <span className="font-semibold">{info.data.source}</span> rate
+              Applied from the{' '}
+              <span className="font-semibold">{SCOPE_LABEL[info.data.source] ?? info.data.source}</span>{' '}
+              rate
               {info.data.minCharge > 0 && ` · minimum charge ${currency(info.data.minCharge)}`}
             </p>
           </div>
@@ -125,8 +137,8 @@ export default function PricingPage() {
             {lists.data.priceLists.map((pl) => (
               <li key={pl.id} className="flex items-start justify-between gap-3 p-4">
                 <div className="min-w-0">
-                  <p className="font-semibold text-text capitalize">
-                    {pl.scope}
+                  <p className="font-semibold text-text">
+                    {SCOPE_LABEL[pl.scope] ?? pl.scope}
                     {pl.organizationName && (
                       <span className="text-text-muted font-normal"> · {pl.organizationName}</span>
                     )}
@@ -228,13 +240,13 @@ function PublishModal({
         <Field
           label="Applies to"
           htmlFor="scope"
-          hint="A kiosk rate overrides its organization, which overrides the platform default."
+          hint="A QR point rate overrides its partner, which overrides the platform default."
         >
           <select id="scope" value={scope}
             onChange={(e) => setScope(e.target.value as typeof scope)} className={inputClass}>
-            <option value="platform">All shops (platform default)</option>
+            <option value="platform">All partners (platform default)</option>
             <option value="organization">One organization</option>
-            <option value="kiosk">One kiosk</option>
+            <option value="kiosk">One QR point</option>
           </select>
         </Field>
 
@@ -250,10 +262,10 @@ function PublishModal({
         )}
 
         {scope === 'kiosk' && (
-          <Field label="Kiosk" htmlFor="pl-kiosk">
+          <Field label="QR point" htmlFor="pl-kiosk">
             <select id="pl-kiosk" required value={kioskId}
               onChange={(e) => setKioskId(e.target.value)} className={inputClass}>
-              <option value="">Select a kiosk…</option>
+              <option value="">Select a QR point…</option>
               {scopedKiosks.map((k) => (
                 <option key={k.id} value={k.id}>{k.kioskId} - {k.name}</option>
               ))}

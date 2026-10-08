@@ -18,6 +18,12 @@ import { currency, currencyCompact, dateOnly } from '@/lib/format';
 export function RevenueChart({ series, loading }: { series: SeriesPoint[]; loading?: boolean }) {
   const [active, setActive] = React.useState<number | null>(null);
 
+  // The hovered bar is remembered by index, so a shorter series - switching to
+  // one printer, or to a narrower period - would leave the index pointing past
+  // the end and crash on read. Dropping it whenever the data changes is right
+  // anyway: the bar under the cursor is no longer the one being pointed at.
+  React.useEffect(() => setActive(null), [series]);
+
   if (loading) {
     return <div className="skeleton h-56 w-full" />;
   }
@@ -33,7 +39,7 @@ export function RevenueChart({ series, loading }: { series: SeriesPoint[]; loadi
 
   const max = Math.max(...series.map((p) => p.revenue), 1);
   const total = series.reduce((sum, p) => sum + p.revenue, 0);
-  const shown = active ?? null;
+  const shown = active !== null && active < series.length ? active : null;
 
   // A single bucket (e.g. "today") shouldn't stretch across the full width.
   const barWidth = series.length === 1 ? '20%' : undefined;

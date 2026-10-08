@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { OrgSwitcher, ScopeBanner } from '@/components/OrgSwitcher';
+import { SupportCard } from '@/components/ContactSupport';
 import { useApi } from '@/lib/useApi';
 import type { AdminProfile } from '@/lib/profile';
 
@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
   { href: '/attention', label: 'Attention', icon: 'alert', permission: 'reports:read', primary: true, group: 'operate' },
   { href: '/pricing', label: 'Pricing', icon: 'tag', permission: 'pricing:read', group: 'manage' },
   { href: '/staff', label: 'Staff', icon: 'users', permission: 'staff:read', group: 'manage' },
-  { href: '/organizations', label: 'Shops', icon: 'building', superAdminOnly: true, group: 'manage' },
+  { href: '/organizations', label: 'Partners', icon: 'building', superAdminOnly: true, group: 'manage' },
   { href: '/leads', label: 'Leads', icon: 'inbox', superAdminOnly: true, group: 'manage' },
   { href: '/audit', label: 'Audit log', icon: 'shield', permission: 'audit:read', group: 'manage' },
 ];
@@ -62,9 +62,12 @@ export function visibleNav(profile: AdminProfile): NavItem[] {
 
 export function Shell({
   profile,
+  remoteApi,
   children,
 }: {
   profile: AdminProfile;
+  /** Set only when a dev build is talking to a backend elsewhere. */
+  remoteApi?: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -168,6 +171,14 @@ export function Shell({
           ))}
         </nav>
 
+        {/* Shop staff get MPrnt's contact details in reach from every page;
+            refunds and pricing are things only MPrnt can do for them. */}
+        {profile.role !== 'super_admin' && (
+          <div className="px-3 pb-3">
+            <SupportCard compact />
+          </div>
+        )}
+
         <div className="p-3 border-t border-border/60">
           <div className="flex items-center gap-1">
             <Link
@@ -203,7 +214,6 @@ export function Shell({
           <div className="flex items-center gap-2 lg:flex-1 min-w-0">
             {profile.role === 'super_admin' && (
               <>
-                <OrgSwitcher />
                 <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-accent text-xs font-medium">
                   Super admin
                 </span>
@@ -215,7 +225,19 @@ export function Shell({
         </div>
       </header>
 
-      <ScopeBanner />
+      {/* A dev server pointed at a deployed backend looks identical to one
+          pointed at localhost, and every action here is real. */}
+      {remoteApi && (
+        <div role="status" className="lg:pl-sidebar bg-warning text-surface">
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 py-1.5 flex items-center gap-2 text-xs font-semibold">
+            <Icon name="alert" className="w-4 h-4 flex-shrink-0" />
+            <span>
+              Local dashboard connected to <span className="font-mono">{remoteApi}</span> — changes
+              here affect that backend, not your machine.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ---------------- Main ---------------- */}
       <main
@@ -333,6 +355,12 @@ export function Shell({
                   );
                 })}
               </ul>
+            )}
+
+            {profile.role !== 'super_admin' && (
+              <div className="mt-3">
+                <SupportCard />
+              </div>
             )}
 
             <button

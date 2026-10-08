@@ -9,6 +9,8 @@
 
 import { isSessionExpired, passwordChangeRedirect } from '@/lib/security';
 
+import type { BusinessModelId } from '@/lib/businessModels';
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -142,6 +144,14 @@ export interface PrinterRow {
     revokedAt: string | null;
     lastSeenIp: string | null;
   };
+  /**
+   * Whether this printer is presented as an MPrnt station.
+   *
+   * A station contains exactly one printer, so there is no separate station
+   * entity: this is a label on the printer, and every figure — revenue, jobs,
+   * queue — belongs to the printer either way.
+   */
+  station: { isStation: boolean; name: string | null; label: string };
   /** No heartbeat for longer than the configured warning threshold. */
   silent: boolean;
   lastHeartbeat: string | null;
@@ -183,6 +193,8 @@ export interface OrganizationRow {
   name: string;
   slug: string;
   status: 'active' | 'suspended';
+  /** null for partners created before the model was recorded. */
+  businessModel: BusinessModelId | null;
   timezone: string;
   contactEmail: string | null;
   contactPhone: string | null;
@@ -238,7 +250,14 @@ export interface Comparison {
 export type ShopActivity = 'active' | 'inactive' | 'new' | 'suspended';
 
 export interface OrgComparisonRow extends Comparison {
-  organization: { id: string; name: string; slug: string; status: string; timezone: string };
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
+    businessModel: BusinessModelId | null;
+    timezone: string;
+  };
   fulfilmentRate: number | null;
   kiosks: number;
   printersOnline: number;

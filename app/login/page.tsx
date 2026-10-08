@@ -90,7 +90,7 @@ function LoginForm() {
 
         <div className="relative max-w-md">
           <p className="font-[family-name:var(--font-display)] text-[2.75rem] leading-[1.05] tracking-tight">
-            Every kiosk, every page, every rupee - at a glance.
+            Every printer, every page, every rupee - at a glance.
           </p>
           <p className="mt-4 text-white/70 text-[15px] leading-relaxed">
             Revenue, printer health and the jobs that need you, in one calm place.
@@ -110,7 +110,7 @@ function LoginForm() {
             <Icon name="printer" className="w-6 h-6" />
           </span>
           <h1 className="page-title">Welcome back</h1>
-          <p className="text-sm text-text-muted mt-1.5">Sign in to manage your kiosks.</p>
+          <p className="text-sm text-text-muted mt-1.5">Sign in to manage your printers.</p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4" noValidate>

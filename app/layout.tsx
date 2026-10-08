@@ -15,7 +15,7 @@ const display = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: 'MPrnt Admin',
-  description: 'Manage kiosks, printers, staff and revenue',
+  description: 'Manage QR points, printers, staff and revenue',
 };
 
 export const viewport: Viewport = {

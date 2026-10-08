@@ -7,30 +7,37 @@ import type { OrganizationRow } from '@/lib/api';
 import { Icon } from '@/components/Icon';
 
 /**
- * Super admin shop switcher.
+ * Super admin shop filter. Placed in the header of each page that supports
+ * it (see SCOPED_ROUTES) and renders nothing anywhere else.
  *
  * A native <select> rather than a custom dropdown: it is fully keyboard and
  * screen-reader accessible without extra work, and on a phone it opens the
  * platform's own picker, which beats anything hand-built at that size.
  */
 export function OrgSwitcher() {
-  const { org, setOrg } = useScope();
-  const { data } = useApi<{ organizations: OrganizationRow[] }>('/organizations', [], {
-    unscoped: true,
-  });
+  const { org, setOrg, available } = useScope();
+  // Only fetched where the picker is shown; shop staff never get here because
+  // `available` is false for them.
+  const { data } = useApi<{ organizations: OrganizationRow[] }>(
+    available ? '/organizations' : null,
+    [],
+    { unscoped: true }
+  );
 
   const orgs = data?.organizations ?? [];
 
-  // If the remembered shop has since been deleted, fall back to all shops
+  // If the remembered partner has since been deleted, fall back to all partners
   // rather than silently filtering everything to nothing.
   React.useEffect(() => {
     if (org && data && !orgs.some((o) => o.id === org.id)) setOrg(null);
   }, [org, data, orgs, setOrg]);
 
+  if (!available) return null;
+
   return (
     <div className="relative">
       <label htmlFor="org-switcher" className="sr-only">
-        Viewing shop
+        Viewing partner
       </label>
       <Icon
         name="building"
@@ -47,7 +54,7 @@ export function OrgSwitcher() {
           rounded-full border text-[13px] font-medium transition-colors shadow-card
           ${org ? 'border-accent/40 bg-accent/10 text-accent' : 'border-border bg-surface text-text hover:border-text-muted/40'}`}
       >
-        <option value="">All shops</option>
+        <option value="">All partners</option>
         {orgs.map((o) => (
           <option key={o.id} value={o.id}>
             {o.name}
@@ -64,39 +71,6 @@ export function OrgSwitcher() {
       >
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
       </svg>
-    </div>
-  );
-}
-
-/**
- * Shown under the header whenever the super admin is scoped to one shop, so it
- * is never ambiguous whether a figure is one shop's or the whole platform's.
- */
-export function ScopeBanner() {
-  const { org, setOrg } = useScope();
-  if (!org) return null;
-
-  return (
-    <div
-      role="status"
-      className="lg:pl-sidebar text-sm"
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-4">
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-accent/10 px-3.5 py-1.5">
-        <p className="text-text min-w-0 truncate flex items-center gap-2">
-          <Icon name="building" className="w-4 h-4 text-accent flex-shrink-0" />
-          <span className="truncate">
-            Viewing <span className="font-semibold">{org.name}</span> only
-          </span>
-        </p>
-        <button
-          onClick={() => setOrg(null)}
-          className="flex-shrink-0 font-medium text-accent hover:underline min-h-[32px]"
-        >
-          Show all shops
-        </button>
-        </div>
-      </div>
     </div>
   );
 }
