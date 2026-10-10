@@ -2,41 +2,30 @@
 
 import React from 'react';
 import { useApi } from '@/lib/useApi';
-import { api, ApiError, type AdminUserRow, type OrganizationRow } from '@/lib/api';
+import { api, ApiError, type AdminUserRow } from '@/lib/api';
 import { dateTime } from '@/lib/format';
 import {
   Card,
   CardHeader,
+  PageHeader,
   StatusPill,
   EmptyState,
   ErrorState,
   SkeletonRows,
   Button,
   Modal,
-  Field,
-  inputClass,
   Toast,
 } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useProfile } from '@/lib/useProfile';
 
-const ROLE_HELP: Record<string, string> = {
-  owner: 'Full control of this shop: staff and reports. Refunds go through MPrnt.',
-  manager: 'Day-to-day operations and reports. Cannot manage staff.',
-  viewer: 'Read-only access to reports.',
-};
-
 export default function StaffPage() {
   const profile = useProfile();
-  const isSuper = profile?.role === 'super_admin';
   const canWrite = profile?.permissions.includes('staff:write');
 
   const { data, error, loading, reload } = useApi<{ count: number; users: AdminUserRow[] }>(
     '/users'
   );
-  const orgs = useApi<{ organizations: OrganizationRow[] }>(isSuper ? '/organizations' : null);
-
-  const [createOpen, setCreateOpen] = React.useState(false);
   const [credentials, setCredentials] = React.useState<{ email: string; password: string } | null>(
     null
   );
@@ -59,22 +48,9 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Staff</h1>
-          <p className="text-sm text-text-muted mt-1.5">
-            {isSuper ? 'Everyone with dashboard access' : 'People who can access this dashboard'}
-          </p>
-        </div>
-        {isSuper && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Icon name="plus" className="w-4 h-4" />
-            Add admin
-          </Button>
-        )}
-      </div>
+      <PageHeader title="Staff" subtitle="People who can access this dashboard" />
 
-      {!isSuper && canWrite && (
+      {canWrite && (
         <p className="text-xs text-text-muted flex items-start gap-2">
           <Icon name="shield" className="w-4 h-4 flex-shrink-0 mt-px" />
           New accounts are issued by MPrnt. Ask your MPrnt contact to add someone to your shop.
@@ -103,9 +79,6 @@ export default function StaffPage() {
                     {u.fullName && (
                       <p className="text-xs text-text-muted truncate">{u.email}</p>
                     )}
-                    {isSuper && u.organizationName && (
-                      <p className="text-xs text-text-muted truncate">{u.organizationName}</p>
-                    )}
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-xs font-semibold text-accent capitalize">
@@ -120,7 +93,7 @@ export default function StaffPage() {
                   {u.mustChangePassword && ' · must change password'}
                 </p>
 
-                {canWrite && u.id !== profile?.id && u.role !== 'super_admin' && (
+                {canWrite && u.id !== profile?.id && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button
                       variant="secondary"
@@ -183,19 +156,6 @@ export default function StaffPage() {
         )}
       </Card>
 
-      {isSuper && (
-        <CreateAdminModal
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          organizations={orgs.data?.organizations ?? []}
-          onCreated={(email, password) => {
-            setCreateOpen(false);
-            setCredentials({ email, password });
-            reload();
-          }}
-        />
-      )}
-
       <CredentialsModal credentials={credentials} onClose={() => setCredentials(null)} />
 
       {toast && (
@@ -205,132 +165,6 @@ export default function StaffPage() {
   );
 }
 
-function CreateAdminModal({
-  open,
-  onClose,
-  organizations,
-  onCreated,
-}: {
-  open: boolean;
-  onClose: () => void;
-  organizations: OrganizationRow[];
-  onCreated: (email: string, password: string) => void;
-}) {
-  const [email, setEmail] = React.useState('');
-  const [fullName, setFullName] = React.useState('');
-  const [role, setRole] = React.useState('owner');
-  const [organizationId, setOrganizationId] = React.useState('');
-  const [error, setError] = React.useState<string | null>(null);
-  const [saving, setSaving] = React.useState(false);
-
-  React.useEffect(() => {
-    if (open) {
-      setEmail('');
-      setFullName('');
-      setRole('owner');
-      setOrganizationId(organizations[0]?.id ?? '');
-      setError(null);
-    }
-  }, [open, organizations]);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSaving(true);
-
-    try {
-      const res = await api.post<{ user: AdminUserRow; temporaryPassword: string }>('/users', {
-        email,
-        fullName: fullName || undefined,
-        role,
-        organizationId,
-      });
-      onCreated(res.user.email, res.temporaryPassword);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not create the account');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal open={open} title="Add an admin" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        {error && (
-          <div role="alert" className="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-            {error}
-          </div>
-        )}
-
-        <Field label="Email" htmlFor="new-email">
-          <input
-            id="new-email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={inputClass}
-            placeholder="owner@shop.com"
-          />
-        </Field>
-
-        <Field label="Full name" htmlFor="new-name" hint="Optional">
-          <input
-            id="new-name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="Organization" htmlFor="new-org">
-          <select
-            id="new-org"
-            required
-            value={organizationId}
-            onChange={(e) => setOrganizationId(e.target.value)}
-            className={inputClass}
-          >
-            {organizations.length === 0 && <option value="">No organizations yet</option>}
-            {organizations.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Role" htmlFor="new-role" hint={ROLE_HELP[role]}>
-          <select
-            id="new-role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className={inputClass}
-          >
-            <option value="owner">Owner</option>
-            <option value="manager">Manager</option>
-            <option value="viewer">Viewer</option>
-          </select>
-        </Field>
-
-        <div className="flex gap-2 pt-1">
-          <Button type="submit" loading={saving} disabled={!organizationId} className="flex-1">
-            Create account
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-/**
- * The generated password is shown exactly once - the backend stores only a hash
- * and cannot reproduce it. The copy here says so plainly, because someone who
- * closes this dialog assuming they can find it later will be wrong.
- */
 function CredentialsModal({
   credentials,
   onClose,

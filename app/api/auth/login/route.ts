@@ -72,6 +72,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // This is the shop dashboard. A platform account can read every shop, and
+  // the shop endpoints this site calls answer a platform token platform-wide,
+  // so letting one in would show cross-shop figures on a page that implies it
+  // is one shop's. The decision is made here, from what the backend itself
+  // says the account is, before any cookie exists.
+  if (data.data.user.role === 'super_admin' || !data.data.user.organizationId) {
+    // The backend has already issued a session. Revoke it, so a refused
+    // sign-in does not leave a live refresh token behind. Best effort: the
+    // refusal below holds either way.
+    await fetch(`${API_BASE}/admin/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...relayHeaders(req) },
+      body: JSON.stringify({ refreshToken: data.data.refreshToken }),
+      cache: 'no-store',
+    }).catch(() => undefined);
+
+    return NextResponse.json(
+      {
+        message: 'This dashboard is for shop accounts. Platform accounts sign in to the platform console.',
+        code: 'PLATFORM_ACCOUNT',
+      },
+      { status: 403 }
+    );
+  }
+
   // Resolve the shop's display name so the sidebar can show it without an
   // extra client round trip on every page load.
   let organizationName: string | null = null;

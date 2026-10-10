@@ -25,6 +25,25 @@ export function middleware(req: NextRequest) {
   const hasSession = Boolean(req.cookies.get('mprnt_rt')?.value);
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
+  // A platform account is not welcome here: this is the shop dashboard, and a
+  // platform token is answered platform-wide by the endpoints it calls. Sign-in
+  // now refuses these, but a session issued before that change is still in the
+  // browser, so it is dropped here and the person is sent to sign in again.
+  // (The profile cookie is client-editable; this is for tidying stale sessions,
+  // and the sign-in check is what actually keeps platform accounts out.)
+  if (hasSession) {
+    const who = parseProfile(req.cookies.get('mprnt_profile')?.value);
+    if (who?.role === 'super_admin') {
+      const res = isPublic
+        ? NextResponse.next()
+        : NextResponse.redirect(new URL('/login?platform=1', req.url));
+      for (const name of ['mprnt_at', 'mprnt_rt', 'mprnt_profile']) {
+        res.cookies.set(name, '', { path: '/', maxAge: 0 });
+      }
+      return res;
+    }
+  }
+
   if (!hasSession && !isPublic) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';

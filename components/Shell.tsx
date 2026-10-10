@@ -29,7 +29,6 @@ export interface NavItem {
   label: string;
   icon: keyof typeof import('@/components/Icon').icons;
   permission?: string;
-  superAdminOnly?: boolean;
   /** Shown in the mobile tab bar rather than the More sheet. */
   primary?: boolean;
   group: 'operate' | 'manage';
@@ -42,8 +41,7 @@ const NAV: NavItem[] = [
   { href: '/attention', label: 'Attention', icon: 'alert', permission: 'reports:read', primary: true, group: 'operate' },
   { href: '/pricing', label: 'Pricing', icon: 'tag', permission: 'pricing:read', group: 'manage' },
   { href: '/staff', label: 'Staff', icon: 'users', permission: 'staff:read', group: 'manage' },
-  { href: '/organizations', label: 'Partners', icon: 'building', superAdminOnly: true, group: 'manage' },
-  { href: '/leads', label: 'Leads', icon: 'inbox', superAdminOnly: true, group: 'manage' },
+  { href: '/shop', label: 'Your shop', icon: 'building', permission: 'reports:read', group: 'manage' },
   { href: '/audit', label: 'Audit log', icon: 'shield', permission: 'audit:read', group: 'manage' },
 ];
 
@@ -54,7 +52,6 @@ const GROUP_LABEL: Record<NavItem['group'], string> = {
 
 export function visibleNav(profile: AdminProfile): NavItem[] {
   return NAV.filter((item) => {
-    if (item.superAdminOnly && profile.role !== 'super_admin') return false;
     if (item.permission && !profile.permissions.includes(item.permission)) return false;
     return true;
   });
@@ -104,8 +101,7 @@ export function Shell({
     router.refresh();
   }
 
-  const scopeLabel =
-    profile.role === 'super_admin' ? 'MPrnt Platform' : profile.organizationName || 'Your shop';
+  const scopeLabel = profile.organizationName || 'Your shop';
   const roleLabel = ROLE_LABEL[profile.role] ?? profile.role;
 
   const groups = (['operate', 'manage'] as const)
@@ -171,13 +167,11 @@ export function Shell({
           ))}
         </nav>
 
-        {/* Shop staff get MPrnt's contact details in reach from every page;
-            refunds and pricing are things only MPrnt can do for them. */}
-        {profile.role !== 'super_admin' && (
-          <div className="px-3 pb-3">
-            <SupportCard compact />
-          </div>
-        )}
+        {/* MPrnt's contact details in reach from every page; refunds and
+            pricing are things only MPrnt can do for a shop. */}
+        <div className="px-3 pb-3">
+          <SupportCard compact />
+        </div>
 
         <div className="p-3 border-t border-border/60">
           <div className="flex items-center gap-1">
@@ -203,23 +197,15 @@ export function Shell({
       </aside>
 
       {/* ---------------- Top bar ----------------
-          Holds context (which shop you are looking at) and preferences. The
-          page's own title lives in the page, so it is not repeated here. */}
+          Holds preferences. The page's own title lives in the page, so it is not
+          repeated here, and the shop's name is in the sidebar. */}
       <header className="lg:pl-sidebar sticky top-0 z-30 glass border-b border-border/60">
         <div className="h-header max-w-6xl mx-auto flex items-center justify-between gap-3 px-4 sm:px-8">
           <div className="lg:hidden">
             <Logo compact />
           </div>
 
-          <div className="flex items-center gap-2 lg:flex-1 min-w-0">
-            {profile.role === 'super_admin' && (
-              <>
-                <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-accent text-xs font-medium">
-                  Super admin
-                </span>
-              </>
-            )}
-          </div>
+          <div className="flex-1" />
 
           <ThemeToggle />
         </div>
@@ -357,11 +343,9 @@ export function Shell({
               </ul>
             )}
 
-            {profile.role !== 'super_admin' && (
-              <div className="mt-3">
-                <SupportCard />
-              </div>
-            )}
+            <div className="mt-3">
+              <SupportCard />
+            </div>
 
             <button
               onClick={signOut}
@@ -379,7 +363,6 @@ export function Shell({
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  super_admin: 'Super admin',
   owner: 'Owner',
   manager: 'Manager',
   viewer: 'Viewer',

@@ -14,7 +14,11 @@ function LoginForm() {
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(
-    params.get('expired') ? 'Your session expired. Please sign in again.' : null
+    params.get('platform')
+      ? 'This dashboard is for shop accounts. Platform accounts sign in to the platform console.'
+      : params.get('expired')
+        ? 'Your session expired. Please sign in again.'
+        : null
   );
   const [loading, setLoading] = React.useState(false);
 

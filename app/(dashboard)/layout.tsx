@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { Shell } from '@/components/Shell';
-import { ScopeProvider } from '@/lib/scope';
 import { getProfile, remoteApiHost } from '@/lib/session';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -10,11 +9,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // exists but cannot be parsed.
   if (!profile) redirect('/login');
 
+  // This is the shop dashboard. Sign-in refuses platform accounts, and the
+  // middleware drops stale ones; this is the last check before anything renders.
+  if (profile.role === 'super_admin' || !profile.organizationId) redirect('/login?platform=1');
+
   return (
-    <ScopeProvider enabled={profile.role === 'super_admin'}>
-      <Shell profile={profile} remoteApi={remoteApiHost()}>
-        {children}
-      </Shell>
-    </ScopeProvider>
+    <Shell profile={profile} remoteApi={remoteApiHost()}>
+      {children}
+    </Shell>
   );
 }

@@ -16,7 +16,6 @@ import {
 } from '@/components/ui';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { Icon } from '@/components/Icon';
-import { OrgSwitcher } from '@/components/OrgSwitcher';
 import { useProfile } from '@/lib/useProfile';
 
 const PAGE_SIZE = 25;
@@ -63,15 +62,12 @@ export default function SessionsPage() {
             Every print job, what it cost and whether it printed
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <OrgSwitcher />
-          {canExport && (
-            <Button variant="secondary" size="sm" onClick={exportCsv}>
-              <Icon name="download" className="w-4 h-4" />
-              Export CSV
-            </Button>
-          )}
-        </div>
+        {canExport && (
+          <Button variant="secondary" size="sm" onClick={exportCsv}>
+            <Icon name="download" className="w-4 h-4" />
+            Export CSV
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">

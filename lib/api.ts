@@ -9,7 +9,6 @@
 
 import { isSessionExpired, passwordChangeRedirect } from '@/lib/security';
 
-import type { BusinessModelId } from '@/lib/businessModels';
 
 export class ApiError extends Error {
   constructor(
@@ -188,28 +187,11 @@ export interface KioskRow {
   printersTotal: number;
 }
 
-export interface OrganizationRow {
-  id: string;
-  name: string;
-  slug: string;
-  status: 'active' | 'suspended';
-  /** null for partners created before the model was recorded. */
-  businessModel: BusinessModelId | null;
-  timezone: string;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  kioskCount?: number;
-  adminCount?: number;
-  createdAt: string;
-}
-
 export interface AdminUserRow {
   id: string;
   email: string;
   fullName: string | null;
-  role: 'super_admin' | 'owner' | 'manager' | 'viewer';
-  organizationId: string | null;
-  organizationName: string | null;
+  role: 'owner' | 'manager' | 'viewer';
   isActive: boolean;
   mustChangePassword: boolean;
   lastLoginAt: string | null;
@@ -247,33 +229,6 @@ export interface Comparison {
   change: { revenuePct: number | null; paidJobsPct: number | null; pagesPct: number | null };
 }
 
-export type ShopActivity = 'active' | 'inactive' | 'new' | 'suspended';
-
-export interface OrgComparisonRow extends Comparison {
-  organization: {
-    id: string;
-    name: string;
-    slug: string;
-    status: string;
-    businessModel: BusinessModelId | null;
-    timezone: string;
-  };
-  fulfilmentRate: number | null;
-  kiosks: number;
-  printersOnline: number;
-  printersTotal: number;
-  lastPaidAt: string | null;
-  daysSinceLastPaid: number | null;
-  activity: ShopActivity;
-}
-
-export interface OrgComparison {
-  period: Period;
-  inactiveAfterDays: number;
-  organizations: OrgComparisonRow[];
-  totals: Comparison;
-}
-
 export interface PriceListRow {
   id: string;
   scope: 'platform' | 'organization' | 'kiosk';
@@ -288,31 +243,28 @@ export interface PriceListRow {
   createdAt: string;
 }
 
-export interface LeadRow {
-  id: string;
+/**
+ * The signed-in shop, as the shop itself may see it.
+ *
+ * Matches GET /admin/shop. There is no id, slug, commercial model or internal
+ * note here: those belong to the platform's view of a partner, and the shop
+ * endpoint does not return them.
+ */
+export interface ShopProfile {
   name: string;
-  email: string;
-  phone: string | null;
-  company: string | null;
-  message: string;
-  source: string;
-  createdAt: string;
-}
-
-export interface LeadPage {
-  leads: LeadRow[];
-  pagination: { total: number; limit: number; offset: number };
-}
-
-export interface RefundResult {
-  jobId: string;
-  refundId: string;
-  paymentId: string;
-  orderId: string;
-  /** Rupees. */
-  amount: number;
-  currency: string;
-  status: 'processed' | 'pending';
-  alreadyRefunded: boolean;
-  createdAt: string;
+  status: 'active' | 'suspended';
+  timezone: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  /** When the shop joined, UTC ISO. */
+  memberSince: string;
+  fleet: { qrPoints: number; printers: number; stations: number };
+  /** Everything since joining. */
+  lifetime: {
+    revenue: number;
+    paidJobs: number;
+    completedJobs: number;
+    pagesPrinted: number;
+    firstSaleAt: string | null;
+  };
 }

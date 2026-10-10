@@ -1,14 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  bodyNamesTenant,
   createSingleFlight,
   isSameOriginRequest,
+  isShopRoute,
   isSessionExpired,
   PASSWORD_CHANGE_PATH,
   passwordChangeRedirect,
   resolveProxyUrl,
   SESSION_EXPIRED_HEADER,
   safeNextPath,
+  stripTenantParams,
 } from '../lib/security.ts';
 
 const BASE = 'https://api.example.test/api/v1';
@@ -151,4 +154,133 @@ test('PASSWORD_CHANGE_REQUIRED sends the person to change their password', () =>
     passwordChangeRedirect(400, { code: 'INVALID_CURRENT_PASSWORD' }, '/account'),
     null
   );
+});
+
+// ---------------------------------------------------------------------------
+// Shop route allowlist
+// ---------------------------------------------------------------------------
+
+const route = (method: string, path: string) => isShopRoute(method, path.split('/'));
+
+test('shop allowlist: everything the dashboard itself uses is reachable', () => {
+  for (const [m, p] of [
+    ['GET', 'admin/shop'],
+    ['GET', 'admin/kiosks'],
+    ['PATCH', 'admin/kiosks/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
+    ['GET', 'admin/printers'],
+    ['POST', 'admin/printers/RPI_M001_01/revoke'],
+    ['GET', 'admin/attention'],
+    ['GET', 'admin/reports/summary'],
+    ['GET', 'admin/reports/series'],
+    ['GET', 'admin/reports/sessions'],
+    ['GET', 'admin/reports/sessions/export'],
+    ['GET', 'admin/pricing'],
+    ['GET', 'admin/pricing/lists'],
+    ['GET', 'admin/users'],
+    ['PATCH', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
+    ['DELETE', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
+    ['POST', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/reset-password'],
+    ['GET', 'admin/audit'],
+    ['GET', 'admin/audit/actions'],
+    ['POST', 'admin/auth/change-password'],
+  ] as const) {
+    assert.equal(route(m, p), true, `${m} ${p}`);
+  }
+});
+
+test('shop allowlist: platform routes are not reachable, whatever the method', () => {
+  for (const [m, p] of [
+    // organizations: the whole partner directory
+    ['GET', 'admin/organizations'],
+    ['POST', 'admin/organizations'],
+    ['GET', 'admin/organizations/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
+    ['PATCH', 'admin/organizations/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
+    ['DELETE', 'admin/organizations/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
+    ['POST', 'admin/organizations/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/status'],
+    ['POST', 'admin/organizations/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/kiosks'],
+    // cross-shop reporting and platform health
+    ['GET', 'admin/reports/organizations'],
+    ['GET', 'admin/queue/status'],
+    ['GET', 'admin/leads'],
+    // minting and rotating printer secrets, creating QR points and accounts
+    ['POST', 'admin/printers/enroll'],
+    ['POST', 'admin/printers/RPI_M001_01/rotate-key'],
+    ['PATCH', 'admin/printers/RPI_M001_01'],
+    ['POST', 'admin/kiosks'],
+    ['POST', 'admin/users'],
+    // pricing and money
+    ['POST', 'admin/pricing/lists'],
+    ['POST', 'admin/print-jobs/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/refund'],
+    // permissions: a shop cannot reshape its own staff's access from here
+    ['PUT', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/permissions'],
+    ['GET', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/permissions'],
+  ] as const) {
+    assert.equal(route(m, p), false, `${m} ${p}`);
+  }
+});
+
+test('shop allowlist: right path, wrong method is refused', () => {
+  assert.equal(route('DELETE', 'admin/kiosks/abc'), false);
+  assert.equal(route('POST', 'admin/reports/summary'), false);
+  assert.equal(route('PUT', 'admin/users/abc'), false);
+  assert.equal(route('GET', 'admin/printers/abc/revoke'), false);
+  assert.equal(route('DELETE', 'admin/shop'), false);
+});
+
+test('shop allowlist: no wildcard leaks through :id', () => {
+  // :id is a single id-shaped segment, not a path prefix.
+  assert.equal(route('PATCH', 'admin/users/abc/permissions'), false);
+  assert.equal(route('PATCH', 'admin/kiosks/abc/anything'), false);
+  assert.equal(route('POST', 'admin/printers/abc/revoke/extra'), false);
+  assert.equal(route('PATCH', 'admin/users/'), false);
+  assert.equal(route('PATCH', 'admin/users/a b'), false);
+  assert.equal(route('PATCH', 'admin/users/abc;rm'), false);
+  assert.equal(route('PATCH', `admin/users/${'a'.repeat(65)}`), false);
+});
+
+test('shop allowlist: case and prefix tricks do not match', () => {
+  assert.equal(route('GET', 'admin/Shop'), false);
+  assert.equal(route('GET', 'Admin/shop'), false);
+  assert.equal(route('GET', 'admin/shop/'), false);
+  assert.equal(route('GET', 'admin/shops'), false);
+  assert.equal(route('GET', 'shop'), false);
+  assert.equal(isShopRoute('GET', []), false);
+  assert.equal(isShopRoute('GET', ['admin']), false);
+});
+
+test('shop allowlist: method is case-insensitive, as HTTP clients vary', () => {
+  assert.equal(isShopRoute('get', ['admin', 'shop']), true);
+  assert.equal(isShopRoute('delete', ['admin', 'shop']), false);
+});
+
+// ---------------------------------------------------------------------------
+// Tenant selectors
+// ---------------------------------------------------------------------------
+
+test('strips every spelling of an organization selector from the query', () => {
+  assert.equal(stripTenantParams('?organizationId=abc'), '');
+  assert.equal(stripTenantParams('?period=month&organizationId=abc'), '?period=month');
+  assert.equal(stripTenantParams('?OrganizationID=abc&limit=5'), '?limit=5');
+  assert.equal(stripTenantParams('?organization_id=abc'), '');
+  assert.equal(stripTenantParams('?orgId=abc&tenantId=def&period=day'), '?period=day');
+  // repeated, to try the "last one wins" / "first one wins" ambiguity
+  assert.equal(stripTenantParams('?organizationId=a&organizationId=b'), '');
+});
+
+test('leaves ordinary query parameters alone', () => {
+  assert.equal(stripTenantParams(''), '');
+  assert.equal(stripTenantParams('?period=month&limit=25&offset=50'), '?period=month&limit=25&offset=50');
+  assert.equal(stripTenantParams('?kioskId=3f1c9a52'), '?kioskId=3f1c9a52');
+});
+
+test('a request body that names an organization is detected', () => {
+  assert.equal(bodyNamesTenant(JSON.stringify({ organizationId: 'abc' })), true);
+  assert.equal(bodyNamesTenant(JSON.stringify({ name: 'x', OrganizationId: 'abc' })), true);
+  assert.equal(bodyNamesTenant(JSON.stringify({ organization_id: 'abc' })), true);
+  assert.equal(bodyNamesTenant(JSON.stringify({ isActive: false })), false);
+  assert.equal(bodyNamesTenant(JSON.stringify({ currentPassword: 'a', newPassword: 'b' })), false);
+  assert.equal(bodyNamesTenant(''), false);
+  assert.equal(bodyNamesTenant(undefined), false);
+  assert.equal(bodyNamesTenant('not json'), false);
+  assert.equal(bodyNamesTenant('[1,2]'), false);
 });

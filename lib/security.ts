@@ -47,6 +47,110 @@ export function resolveProxyUrl(
   return url;
 }
 
+/**
+ * The backend routes a shop dashboard may call - and nothing else.
+ *
+ * This site is for one shop looking at its own business. The backend serves a
+ * far wider API, because the platform console uses it too: organizations,
+ * leads, enrolling printers, rotating keys, publishing prices, refunds. A shop
+ * admin's token is accepted by the backend for the routes they hold
+ * permissions on, but this proxy exists to be a narrower door than that, so a
+ * route absent from this list is simply not reachable from here.
+ *
+ * It is least privilege, not the isolation boundary. Isolation is enforced by
+ * the backend, which derives a shop's scope from its token and never from the
+ * request. This list is what stops a bug in either layer from also being a
+ * route to a platform feature.
+ *
+ * Paths are relative to /admin. `:id` matches exactly one id-shaped segment.
+ */
+const SHOP_ROUTES: ReadonlyArray<readonly [string, string]> = [
+  ['GET', 'shop'],
+  ['GET', 'kiosks'],
+  ['PATCH', 'kiosks/:id'],
+  ['GET', 'printers'],
+  ['POST', 'printers/:id/revoke'],
+  ['GET', 'attention'],
+  ['GET', 'reports/summary'],
+  ['GET', 'reports/series'],
+  ['GET', 'reports/sessions'],
+  ['GET', 'reports/sessions/export'],
+  ['GET', 'pricing'],
+  ['GET', 'pricing/lists'],
+  ['GET', 'users'],
+  ['PATCH', 'users/:id'],
+  ['DELETE', 'users/:id'],
+  ['POST', 'users/:id/reset-password'],
+  ['GET', 'audit'],
+  ['GET', 'audit/actions'],
+  ['POST', 'auth/change-password'],
+];
+
+/** UUIDs and printer ids: letters, digits, underscore, hyphen. */
+const ID_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** Whether this method + path (segments starting at `admin`) is a shop route. */
+export function isShopRoute(method: string, segments: string[]): boolean {
+  if (segments[0] !== 'admin') return false;
+
+  const rest = segments.slice(1);
+  const verb = method.toUpperCase();
+
+  return SHOP_ROUTES.some(([routeVerb, template]) => {
+    if (routeVerb !== verb) return false;
+
+    const parts = template.split('/');
+    if (parts.length !== rest.length) return false;
+
+    return parts.every((part, i) =>
+      part.startsWith(':') ? ID_SEGMENT.test(rest[i]) : part === rest[i]
+    );
+  });
+}
+
+/** Names a client could use to pick which organization a request is about. */
+const TENANT_KEYS = new Set(['organizationid', 'organization_id', 'orgid', 'tenantid']);
+
+/**
+ * Removes any query parameter that selects an organization.
+ *
+ * A shop's scope comes from its token. The backend already ignores or rejects
+ * these, but a shop dashboard has no reason to ever send one, so it is dropped
+ * here rather than relied upon to be refused further in.
+ */
+export function stripTenantParams(search: string): string {
+  if (!search || !search.startsWith('?')) return search || '';
+
+  const params = new URLSearchParams(search.slice(1));
+  for (const key of Array.from(params.keys())) {
+    if (TENANT_KEYS.has(key.toLowerCase())) params.delete(key);
+  }
+
+  const out = params.toString();
+  return out ? `?${out}` : '';
+}
+
+/**
+ * True when a JSON request body tries to name an organization.
+ *
+ * Same reasoning as stripTenantParams, for the body: the shop dashboard never
+ * sends one, so a request that does is not from this dashboard's own pages.
+ */
+export function bodyNamesTenant(raw: string | undefined | null): boolean {
+  if (!raw) return false;
+
+  try {
+    const body: unknown = JSON.parse(raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+    return Object.keys(body as Record<string, unknown>).some((k) =>
+      TENANT_KEYS.has(k.toLowerCase())
+    );
+  } catch {
+    // Not JSON: nothing here to name an organization. The backend validates.
+    return false;
+  }
+}
+
 function isSafeSegment(seg: string): boolean {
   if (seg === '' || seg === '.' || seg === '..') return false;
   // Separators, a leftover escape (double-encoded input), and control

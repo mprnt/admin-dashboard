@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { useApi } from '@/lib/useApi';
-import { useProfile } from '@/lib/useProfile';
 import {
   buildQuery,
   type Comparison,
@@ -26,12 +25,10 @@ import {
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { RevenueChart } from '@/components/RevenueChart';
 import { Icon } from '@/components/Icon';
-import { OrgSwitcher } from '@/components/OrgSwitcher';
 import type { AttentionRow, PrinterRow } from '@/lib/api';
 
 export default function OverviewPage() {
   const [period, setPeriod] = React.useState<Period>('month');
-  const isSuper = useProfile()?.role === 'super_admin';
 
   const summary = useApi<{ range: Range; summary: Summary; comparison: Comparison | null }>(
     `/reports/summary${buildQuery({ period })}`
@@ -63,14 +60,11 @@ export default function OverviewPage() {
         title="Overview"
         subtitle="Here’s how your QR points are doing."
         actions={
-          <>
-            <OrgSwitcher />
-            <PeriodFilter
-              value={period}
-              onChange={setPeriod}
-              timezone={summary.data?.range.timezone}
-            />
-          </>
+          <PeriodFilter
+            value={period}
+            onChange={setPeriod}
+            timezone={summary.data?.range.timezone}
+          />
         }
       />
 
@@ -88,11 +82,7 @@ export default function OverviewPage() {
                 tone="warning"
                 icon="alert"
                 title={`${needsAttention} paid ${needsAttention === 1 ? 'job' : 'jobs'} not printed`}
-                body={
-                  isSuper
-                    ? 'Customers have paid. Review before they ask for a refund.'
-                    : 'Customers have paid. For refunds, contact your MPrnt administrator.'
-                }
+                body="Customers have paid. For refunds, contact MPrnt."
               />
             )}
             {offline > 0 && (

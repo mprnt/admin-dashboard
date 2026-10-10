@@ -2,18 +2,14 @@
 
 import React from 'react';
 import { useApi } from '@/lib/useApi';
-import { useProfile } from '@/lib/useProfile';
-import { useScope } from '@/lib/scope';
 import { buildQuery, type AuditRow } from '@/lib/api';
 import { dateTime, titleCase } from '@/lib/format';
-import { Card, CardHeader, EmptyState, ErrorState, SkeletonRows, Button } from '@/components/ui';
+import { Card, CardHeader, EmptyState, ErrorState, PageHeader, SkeletonRows, Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { OrgSwitcher } from '@/components/OrgSwitcher';
 
 const PAGE_SIZE = 50;
 
 type Category = 'all' | 'security';
-type Who = 'everyone' | 'platform' | 'shop';
 
 /** Tone by action family, so destructive events stand out when scanning. */
 function toneFor(action: string): string {
@@ -41,44 +37,30 @@ const REASON: Record<string, string> = {
  * the backend ignores platform-only parameters from shop staff.
  */
 export default function AuditPage() {
-  const profile = useProfile();
-  const { org } = useScope();
-  const isSuper = profile?.role === 'super_admin';
-
   const [category, setCategory] = React.useState<Category>('all');
-  const [who, setWho] = React.useState<Who>('everyone');
   const [action, setAction] = React.useState('');
   const [page, setPage] = React.useState(0);
 
-  React.useEffect(() => setPage(0), [category, who, action, org?.id]);
+  React.useEffect(() => setPage(0), [category, action]);
 
   const { data, error, loading, reload } = useApi<{ total: number; entries: AuditRow[] }>(
     `/audit${buildQuery({
       category,
-      actorScope: isSuper && who !== 'everyone' ? who : undefined,
       action: action || undefined,
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
     })}`
   );
-  const actions = useApi<{ actions: string[] }>('/audit/actions', [], { unscoped: true });
+  const actions = useApi<{ actions: string[] }>('/audit/actions');
 
   const pages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
-  const showShop = isSuper && !org;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Audit log</h1>
-          <p className="text-sm text-text-muted mt-1.5">
-            {isSuper
-              ? `Every administrative change${org ? ` concerning ${org.name}` : ' across all partners'}`
-              : "Changes made by your shop's staff, and sign-in activity on their accounts"}
-          </p>
-        </div>
-        <OrgSwitcher />
-      </div>
+      <PageHeader
+        title="Audit log"
+        subtitle="Changes made by your shop's staff, and sign-in activity on their accounts"
+      />
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         <div
@@ -107,23 +89,6 @@ export default function AuditPage() {
         </div>
 
         <div className="flex flex-wrap gap-3 lg:ml-auto">
-          {isSuper && (
-            <div className="flex items-center gap-2">
-              <label htmlFor="who" className="text-sm text-text-muted whitespace-nowrap">
-                Done by
-              </label>
-              <select
-                id="who"
-                value={who}
-                onChange={(e) => setWho(e.target.value as Who)}
-                className="px-3 py-1.5 min-h-[36px] rounded-lg border border-border bg-surface text-sm text-text"
-              >
-                <option value="everyone">Everyone</option>
-                <option value="platform">MPrnt (platform)</option>
-                <option value="shop">Partner staff</option>
-              </select>
-            </div>
-          )}
           <div className="flex items-center gap-2">
             <label htmlFor="action" className="text-sm text-text-muted whitespace-nowrap">
               Action
@@ -164,19 +129,6 @@ export default function AuditPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold text-text">{describe(entry)}</p>
-                      {isSuper && (
-                        <span
-                          className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                            entry.actorScope === 'platform'
-                              ? 'border-accent/40 text-accent bg-accent/10'
-                              : 'border-border text-text-muted'
-                          }`}
-                        >
-                          {/* A super admin is looking across partners; shop staff are looking
-                              at their own colleagues, for whom "Partner" would be odd. */}
-                          {entry.actorScope === 'platform' ? 'MPrnt' : isSuper ? 'Partner' : 'Shop'}
-                        </span>
-                      )}
                     </div>
                     <p className="text-xs text-text-muted mt-0.5">
                       {entry.actor ? (
@@ -187,7 +139,6 @@ export default function AuditPage() {
                       ) : (
                         'Unknown / system'
                       )}
-                      {showShop && entry.organization?.name ? ` · ${entry.organization.name}` : ''}
                       {' · '}
                       {dateTime(entry.createdAt)}
                       {entry.ipAddress && ` · ${entry.ipAddress}`}

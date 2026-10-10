@@ -1,12 +1,18 @@
 # MPrnt Admin
 
-Dashboard for the MPrnt print kiosk platform. Next.js 14 (App Router), TypeScript,
-Tailwind. Talks to the `mprnt-backend` admin API.
+The shop dashboard for the MPrnt print platform: one shop looking at its own
+business. Next.js 14 (App Router), TypeScript, Tailwind. Talks to the
+`mprnt-backend` admin API.
 
-Two layers, one codebase - which one you get is decided by your account:
+**This is for shop accounts only.** A shop sees its own sessions, printers,
+revenue, staff, rates and audit trail, and when it joined and what it has earned
+since. There is no organization directory, no cross-shop view and no shop
+switcher, and a platform (super admin) account is refused at sign-in. The
+platform console is a separate site.
 
-- **Super admin** - every shop. Creates organizations and staff, sets pricing.
-- **Shop admin** - one shop. Their sessions, printers, revenue and staff.
+What a shop cannot do from here, because MPrnt does it for them: add a QR
+point, enroll or re-key a printer, create staff accounts, set pricing, issue
+refunds. Each of those points the shop at MPrnt (email and phone, pre-filled).
 
 ---
 
@@ -18,13 +24,9 @@ cp .env.example .env.local     # point MPRNT_API_URL at your backend
 npm run dev                    # http://localhost:3002
 ```
 
-The backend must be running and migrated, with at least one super admin:
-
-```bash
-# in mprnt-backend
-npm run migrate:sql -- 011_admin_dashboard.sql
-npm run create-super-admin -- you@example.com "Your Name"
-```
+The backend must be running and migrated, with at least one shop and a shop
+account to sign in as (shop accounts are created by the platform; this site
+cannot create them).
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -55,8 +57,10 @@ Three consequences worth knowing:
 
 - **401s are invisible.** The proxy refreshes once and replays the request, so a
   15-minute access token never interrupts anyone mid-task.
-- **The proxy only forwards `/admin/*`.** Without that allowlist it would be an
-  open relay to the whole backend, authenticated as an admin.
+- **The proxy is a narrow door.** It forwards only the exact method + path pairs
+  this dashboard uses (`isShopRoute` in `lib/security.ts`), strips any
+  organization selector from the query, and refuses a body that names one.
+  Platform routes answer `404`, exactly like an unknown route.
 - **`mprnt_profile` is deliberately readable.** It drives which nav and buttons
   render. It is editable by anyone with devtools, so the backend re-checks every
   permission on every request - hiding a button is courtesy, not security.
@@ -138,10 +142,10 @@ app/
   (dashboard)/            authenticated shell
     page.tsx              overview: KPIs, revenue chart, alerts
     sessions/             job list, filters, CSV export
-    printers/             printer health + kiosks
+    printers/             printer health + QR points
     attention/            paid but unprinted - the page that costs money
     staff/                admin accounts, one-time passwords
-    organizations/        shops (super admin)
+    shop/                 when you joined, lifetime revenue, your setup
     pricing/              rates in force + history
     audit/                administrative changes
     account/              own profile, password change
@@ -175,5 +179,17 @@ bare `YYYY-MM-DD` as local, not UTC, so the browser's own offset doesn't shift
 them. The backend hit three separate bugs in this area; don't reintroduce them
 by passing these through `new Date()` casually.
 
-**Not built yet**: refunds (the backend has the permission and a Razorpay refund
-method, but no endpoint), impersonation, MFA.
+**Isolation lives in the backend.** A shop's scope comes from its token, never
+from the request: every list is filtered by the token's organization, and a
+request that names another one is a `404`. This site adds the narrow proxy on
+top so a mistake in either place is not also a route to a platform feature.
+`scripts/verify-isolation.mjs` signs in as real shop accounts and attacks one
+shop from another - through this site and straight at the backend - then
+checks nothing changed. Run it against local or staging after any change to
+auth, the proxy or a backend route:
+
+```bash
+ISO_ACCOUNTS=./accounts.json node scripts/verify-isolation.mjs   # see the header for the file
+```
+
+**Not built yet**: MFA. Refunds are issued by the platform, not by shop staff.

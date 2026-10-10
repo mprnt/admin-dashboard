@@ -46,6 +46,48 @@ export function dateOnly(value: string | null): string {
   return new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: 'short' }).format(d);
 }
 
+/**
+ * "8 October 2026", with the year, in the given timezone.
+ *
+ * For a moment in time rather than a calendar date: a shop that joined at
+ * 11pm should see the day it joined in its own timezone, not whatever day it
+ * was on the server or in the browser's.
+ */
+export function dateLong(value: string | null, timeZone?: string): string {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '-';
+
+  try {
+    return new Intl.DateTimeFormat(LOCALE, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone,
+    }).format(d);
+  } catch {
+    // An unrecognised timezone name should not blank the page.
+    return new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  }
+}
+
+/** How long ago, in the largest sensible unit: "3 days", "5 months", "2 years". */
+export function sinceLabel(value: string | null, now: number = Date.now()): string {
+  if (!value) return '';
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return '';
+
+  const days = Math.max(0, Math.floor((now - then) / 86_400_000));
+  if (days < 1) return 'today';
+  if (days < 60) return `${days} day${days === 1 ? '' : 's'}`;
+
+  const months = Math.floor(days / 30.44);
+  if (months < 24) return `${months} months`;
+
+  const years = Math.floor(days / 365.25);
+  return `${years} years`;
+}
+
 export function duration(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return '-';
   if (seconds < 60) return `${Math.round(seconds)}s`;

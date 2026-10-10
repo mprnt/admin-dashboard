@@ -10,11 +10,14 @@ import {
   relayHeaders,
 } from '@/lib/session';
 import {
+  bodyNamesTenant,
   createSingleFlight,
   isSameOriginRequest,
+  isShopRoute,
   isUnsafeMethod,
   resolveProxyUrl,
   SESSION_EXPIRED_HEADER,
+  stripTenantParams,
 } from '@/lib/security';
 
 /**
@@ -27,8 +30,18 @@ import {
  *  - a 401 can be handled transparently, by refreshing once and replaying the
  *    request, so a 15-minute token expiry never interrupts someone mid-task.
  *
- * Only paths under /admin are forwarded. Without that check this would be an
- * open relay to every backend route, authenticated with an admin's token.
+ * This is a shop dashboard, so the proxy is a narrow door, in three layers:
+ *
+ *  1. only paths under /admin, with no traversal out of it (resolveProxyUrl);
+ *  2. only the specific method + path pairs the dashboard uses (isShopRoute),
+ *     so platform routes - organizations, enrolling printers, refunds - are not
+ *     reachable from this site even with a valid token;
+ *  3. no request names an organization: any selector is dropped from the query
+ *     and a body that carries one is refused.
+ *
+ * None of that is what keeps one shop out of another's data. The backend does
+ * that, by deriving a shop's scope from its token. These layers make sure a
+ * mistake in either place is not also a route to a platform feature.
  */
 
 type Tokens = { accessToken: string; refreshToken: string; expiresIn: number };
@@ -72,13 +85,23 @@ async function callRefresh(req: NextRequest, refreshToken: string): Promise<Toke
 }
 
 async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
-  const target = resolveProxyUrl(API_BASE, ctx.params.path, req.nextUrl.search || '');
+  const method = req.method;
+
+  // Unknown routes and platform routes answer identically, so this cannot be
+  // used to discover which platform endpoints exist.
+  if (!isShopRoute(method, ctx.params.path)) {
+    return NextResponse.json({ message: 'Not found' }, { status: 404 });
+  }
+
+  const target = resolveProxyUrl(
+    API_BASE,
+    ctx.params.path,
+    stripTenantParams(req.nextUrl.search || '')
+  );
   if (!target) {
     return NextResponse.json({ message: 'Not found' }, { status: 404 });
   }
   const url = target.toString();
-
-  const method = req.method;
 
   if (
     isUnsafeMethod(method) &&
@@ -92,6 +115,13 @@ async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
   }
   const hasBody = !['GET', 'HEAD'].includes(method);
   const rawBody = hasBody ? await req.text() : undefined;
+
+  if (bodyNamesTenant(rawBody)) {
+    return NextResponse.json(
+      { message: 'This dashboard does not select an organization' },
+      { status: 400 }
+    );
+  }
 
   const call = (token?: string) =>
     fetch(url, {
