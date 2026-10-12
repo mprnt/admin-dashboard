@@ -88,7 +88,7 @@ export function Button({
 
   const sizes: Record<string, string> = {
     // min-h keeps the tap target usable even when the label is short.
-    sm: 'text-[13px] px-3 py-1.5 min-h-[38px]',
+    sm: 'text-[13px] px-3 py-1.5 min-h-[44px] md:min-h-[38px]',
     md: 'text-sm px-4 py-2.5 min-h-[44px]',
   };
 

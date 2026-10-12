@@ -79,7 +79,7 @@ export default function AuditPage() {
               role="radio"
               aria-checked={category === value}
               onClick={() => setCategory(value)}
-              className={`px-3 sm:px-4 py-1.5 rounded-md text-sm font-semibold transition-colors min-h-[36px] ${
+              className={`px-3 sm:px-4 py-1.5 rounded-md text-sm font-semibold transition-colors min-h-[44px] sm:min-h-[36px] ${
                 category === value ? 'bg-surface text-accent shadow-sm' : 'text-text-muted hover:text-text'
               }`}
             >
@@ -97,7 +97,7 @@ export default function AuditPage() {
               id="action"
               value={action}
               onChange={(e) => setAction(e.target.value)}
-              className="px-3 py-1.5 min-h-[36px] rounded-lg border border-border bg-surface text-sm text-text max-w-[14rem]"
+              className="px-3 py-1.5 min-h-[44px] sm:min-h-[36px] rounded-lg border border-border bg-surface text-sm text-text max-w-[14rem]"
             >
               <option value="">All actions</option>
               {(actions.data?.actions ?? []).map((a) => (

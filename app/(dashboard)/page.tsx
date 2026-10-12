@@ -24,6 +24,7 @@ import {
 } from '@/components/ui';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { RevenueChart } from '@/components/RevenueChart';
+import { RevenueSplitCard } from '@/components/RevenueSplitCard';
 import { Icon } from '@/components/Icon';
 import type { AttentionRow, PrinterRow } from '@/lib/api';
 
@@ -195,6 +196,8 @@ export default function OverviewPage() {
         </StatStrip>
       )}
 
+      <RevenueSplitCard period={period} />
+
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader title="Revenue" subtitle={rangeLabel(summary.data?.range)} />
@@ -352,7 +355,7 @@ function ViewAll({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline min-h-[32px]"
+      className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline min-h-[44px]"
     >
       View all<span className="sr-only"> {label.toLowerCase()}</span>
       <Icon name="arrowRight" className="w-3.5 h-3.5" />

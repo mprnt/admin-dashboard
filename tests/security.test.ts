@@ -176,6 +176,8 @@ test('shop allowlist: everything the dashboard itself uses is reachable', () => 
     ['GET', 'admin/reports/sessions/export'],
     ['GET', 'admin/pricing'],
     ['GET', 'admin/pricing/lists'],
+    ['GET', 'admin/revenue-split'],
+    ['GET', 'admin/revenue-split/summary'],
     ['GET', 'admin/users'],
     ['PATCH', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
     ['DELETE', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10'],
@@ -210,6 +212,10 @@ test('shop allowlist: platform routes are not reachable, whatever the method', (
     ['POST', 'admin/users'],
     // pricing and money
     ['POST', 'admin/pricing/lists'],
+    // the split is set by the platform, never by a shop
+    ['POST', 'admin/revenue-split'],
+    ['PATCH', 'admin/revenue-split'],
+    ['DELETE', 'admin/revenue-split'],
     ['POST', 'admin/print-jobs/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/refund'],
     // permissions: a shop cannot reshape its own staff's access from here
     ['PUT', 'admin/users/3f1c9a52-7d0e-4b0a-9c1f-2f6f7a1d9e10/permissions'],

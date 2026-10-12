@@ -51,7 +51,7 @@ export function ThemeToggle() {
       onClick={cycle}
       title={label}
       aria-label={`${label}. Activate to change.`}
-      className="rounded-full text-text-muted hover:text-text hover:bg-text/5 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+      className="rounded-full text-text-muted hover:text-text hover:bg-text/5 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
     >
       {mode === 'dark' ? (
         <Icon name="moon" className="w-5 h-5" />

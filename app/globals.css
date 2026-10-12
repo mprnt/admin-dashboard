@@ -14,8 +14,8 @@
    If mprnt-qr should match, copy the neutrals across too. */
 :root {
   /* PRIMARY brand color - deep forest green */
-  --color-primary: 26 98 64;
-  --color-primary-dark: 18 74 48;
+  --color-primary: 25 80 50;
+  --color-primary-dark: 16 56 36;
   --color-primary-light: 60 160 108;
 
   /* SECONDARY brand color - sage green for balance */
@@ -24,10 +24,10 @@
   --color-secondary-light: 110 170 140;
 
   /* Light mode: warm paper canvas, white cards */
-  --color-surface: 255 255 255;
-  --color-surface-secondary: 247 246 243;
-  --color-surface-sunken: 240 238 234;
-  --color-border: 232 229 223;
+  --color-surface: 255 255 252;
+  --color-surface-secondary: 247 245 239;
+  --color-surface-sunken: 238 235 226;
+  --color-border: 226 221 210;
   --color-text: 28 27 25;
   --color-text-muted: 107 104 98;
 
@@ -43,7 +43,7 @@
 
   /* Primary, adjusted for legibility as text on a surface. Fills keep using
      --color-primary so buttons stay brand-accurate. */
-  --color-accent: 22 92 60;
+  --color-accent: 25 80 50;
 
   /* Elevation: soft, layered shadows instead of hard outlines. */
   --shadow-card: 0 1px 2px rgb(28 27 25 / 0.04), 0 1px 1px rgb(28 27 25 / 0.02);
@@ -64,7 +64,7 @@
   --color-text: 238 237 233;
   --color-text-muted: 158 155 149;
 
-  --color-primary: 34 120 78;
+  --color-primary: 46 122 82;
   --color-primary-light: 96 200 145;
   --color-secondary-light: 130 200 160;
 

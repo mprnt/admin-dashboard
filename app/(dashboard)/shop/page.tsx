@@ -164,7 +164,7 @@ export default function ShopPage() {
             action={
               <Link
                 href="/printers"
-                className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline min-h-[32px]"
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline min-h-[44px]"
               >
                 View printers
                 <Icon name="arrowRight" className="w-3.5 h-3.5" />

@@ -17,14 +17,14 @@ export function SupportCard({ compact = false }: { compact?: boolean }) {
       <div className="grid grid-cols-2 gap-2 mt-3">
         <a
           href={supportMailto('MPrnt support request')}
-          className="inline-flex items-center justify-center gap-1.5 min-h-[38px] rounded-xl border border-border bg-surface text-[13px] font-medium text-text hover:bg-surface-secondary"
+          className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[38px] rounded-xl border border-border bg-surface text-[13px] font-medium text-text hover:bg-surface-secondary"
         >
           <Icon name="mail" className="w-4 h-4" />
           Email
         </a>
         <a
           href={supportTel}
-          className="inline-flex items-center justify-center gap-1.5 min-h-[38px] rounded-xl bg-primary text-white text-[13px] font-medium hover:bg-primary-dark"
+          className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[38px] rounded-xl bg-primary text-white text-[13px] font-medium hover:bg-primary-dark"
         >
           <Icon name="phone" className="w-4 h-4" />
           Call

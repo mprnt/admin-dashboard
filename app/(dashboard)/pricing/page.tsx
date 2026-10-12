@@ -60,7 +60,7 @@ export default function PricingPage() {
                   id="kiosk-select"
                   value={kioskId}
                   onChange={(e) => setKioskId(e.target.value)}
-                  className={`${inputClass} text-sm py-1.5 min-h-[38px] w-40`}
+                  className={`${inputClass} text-sm py-1.5 min-h-[44px] sm:min-h-[38px] w-40`}
                 >
                   <option value="">Default</option>
                   {kiosks.data.kiosks.map((k) => (

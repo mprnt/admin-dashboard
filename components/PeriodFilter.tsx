@@ -40,7 +40,7 @@ export function PeriodFilter({
               role="radio"
               aria-checked={active}
               onClick={() => onChange(opt.value)}
-              className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all min-h-[34px] ${
+              className={`px-3 sm:px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all min-h-[44px] sm:min-h-[34px] ${
                 active
                   ? 'bg-surface text-text shadow-raised'
                   : 'text-text-muted hover:text-text'

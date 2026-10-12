@@ -8,7 +8,7 @@ business. Next.js 14 (App Router), TypeScript, Tailwind. Talks to the
 revenue, staff, rates and audit trail, and when it joined and what it has earned
 since. There is no organization directory, no cross-shop view and no shop
 switcher, and a platform (super admin) account is refused at sign-in. The
-platform console is a separate site.
+platform console is a separate app (its own folder, port 3003, cookies and build), so it is not part of this repo's build.
 
 What a shop cannot do from here, because MPrnt does it for them: add a QR
 point, enroll or re-key a printer, create staff accounts, set pricing, issue

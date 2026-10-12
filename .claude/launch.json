@@ -54,6 +54,15 @@
         "MPRNT_API_URL=https://backend-production-1427.up.railway.app/api/v1 npx next dev -p 3005"
       ],
       "port": 3005
+    },
+    {
+      "name": "super-admin",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/akshatmahajan/super-admin && npx next dev -p 3003"
+      ],
+      "port": 3003
     }
   ]
 }
