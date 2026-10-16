@@ -56,10 +56,10 @@ type Refreshed = { tokens: Tokens; profile: AdminProfile } | null;
 const refreshOnce = createSingleFlight<Tokens | null>(30_000);
 
 async function refreshTokens(req: NextRequest): Promise<Refreshed> {
-  const refreshToken = getRefreshToken();
+  const refreshToken = await getRefreshToken();
   if (!refreshToken) return null;
 
-  const profile = getProfile();
+  const profile = await getProfile();
   if (!profile) return null;
 
   const result = await refreshOnce(refreshToken, () => callRefresh(req, refreshToken)).catch(
@@ -84,18 +84,19 @@ async function callRefresh(req: NextRequest, refreshToken: string): Promise<Toke
   return body.data ?? null;
 }
 
-async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
+async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const method = req.method;
+  const { path } = await ctx.params;
 
   // Unknown routes and platform routes answer identically, so this cannot be
   // used to discover which platform endpoints exist.
-  if (!isShopRoute(method, ctx.params.path)) {
+  if (!isShopRoute(method, path)) {
     return NextResponse.json({ message: 'Not found' }, { status: 404 });
   }
 
   const target = resolveProxyUrl(
     API_BASE,
-    ctx.params.path,
+    path,
     stripTenantParams(req.nextUrl.search || '')
   );
   if (!target) {
@@ -137,7 +138,7 @@ async function handle(req: NextRequest, ctx: { params: { path: string[] } }) {
 
   let upstream: Response;
   try {
-    upstream = await call(getAccessToken());
+    upstream = await call(await getAccessToken());
   } catch {
     console.error(`[proxy] Cannot reach the backend at ${API_BASE}`);
     return NextResponse.json(

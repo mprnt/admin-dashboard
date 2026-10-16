@@ -25,6 +25,7 @@ import {
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { RevenueChart } from '@/components/RevenueChart';
 import { RevenueSplitCard } from '@/components/RevenueSplitCard';
+import { BillingCard } from '@/components/BillingCard';
 import { Icon } from '@/components/Icon';
 import type { AttentionRow, PrinterRow } from '@/lib/api';
 
@@ -197,6 +198,8 @@ export default function OverviewPage() {
       )}
 
       <RevenueSplitCard period={period} />
+
+      <BillingCard />
 
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">

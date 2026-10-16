@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Cross-origin request refused' }, { status: 403 });
   }
 
-  const refreshToken = getRefreshToken();
+  const refreshToken = await getRefreshToken();
 
   // Tell the backend to revoke the refresh token, then clear locally. A failure
   // upstream must not leave the browser holding a session it thinks is valid,

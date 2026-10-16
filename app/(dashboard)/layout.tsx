@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import { Shell } from '@/components/Shell';
 import { getProfile, remoteApiHost } from '@/lib/session';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const profile = getProfile();
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const profile = await getProfile();
 
   // Middleware already redirects without a session; this covers a cookie that
   // exists but cannot be parsed.
