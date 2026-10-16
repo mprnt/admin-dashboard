@@ -114,16 +114,16 @@ export function clearAuthCookies(res: NextResponse): void {
   }
 }
 
-export function getAccessToken(): string | undefined {
-  return cookies().get(ACCESS_COOKIE)?.value;
+export async function getAccessToken(): Promise<string | undefined> {
+  return (await cookies()).get(ACCESS_COOKIE)?.value;
 }
 
-export function getRefreshToken(): string | undefined {
-  return cookies().get(REFRESH_COOKIE)?.value;
+export async function getRefreshToken(): Promise<string | undefined> {
+  return (await cookies()).get(REFRESH_COOKIE)?.value;
 }
 
-export function getProfile(): AdminProfile | null {
-  return parseProfile(cookies().get(PROFILE_COOKIE)?.value);
+export async function getProfile(): Promise<AdminProfile | null> {
+  return parseProfile((await cookies()).get(PROFILE_COOKIE)?.value);
 }
 
 /**
@@ -140,7 +140,7 @@ export async function apiFetch(
   init: RequestInit = {},
   token?: string
 ): Promise<Response> {
-  const accessToken = token ?? getAccessToken();
+  const accessToken = token ?? (await getAccessToken());
 
   return fetch(`${API_BASE}${path}`, {
     ...init,

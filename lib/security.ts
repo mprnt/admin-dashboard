@@ -79,6 +79,7 @@ const SHOP_ROUTES: ReadonlyArray<readonly [string, string]> = [
   ['GET', 'pricing/lists'],
   ['GET', 'revenue-split'],
   ['GET', 'revenue-split/summary'],
+  ['GET', 'billing/contract'],
   ['GET', 'users'],
   ['PATCH', 'users/:id'],
   ['DELETE', 'users/:id'],
