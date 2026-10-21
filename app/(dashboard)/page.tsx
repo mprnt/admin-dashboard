@@ -5,118 +5,101 @@ import Link from 'next/link';
 import { useApi } from '@/lib/useApi';
 import {
   buildQuery,
+  type AttentionRow,
   type Comparison,
   type Period,
+  type PrinterRow,
   type Range,
-  type Summary,
   type SeriesPoint,
+  type Summary,
 } from '@/lib/api';
 import { currency, number, duration, relativeAge } from '@/lib/format';
-import {
-  Card,
-  CardHeader,
-  Stat,
-  StatStrip,
-  StatusPill,
-  ErrorState,
-  EmptyState,
-  PageHeader,
-} from '@/components/ui';
+import { Card, CardHeader, ErrorState, EmptyState, PageHeader, Trend } from '@/components/ui';
 import { PeriodFilter } from '@/components/PeriodFilter';
-import { RevenueChart } from '@/components/RevenueChart';
 import { RevenueSplitCard } from '@/components/RevenueSplitCard';
 import { BillingCard } from '@/components/BillingCard';
 import { Icon } from '@/components/Icon';
-import type { AttentionRow, PrinterRow } from '@/lib/api';
+import { AreaTrend, type TrendMetric } from '@/components/viz/AreaTrend';
+import { DayGrid } from '@/components/viz/DayGrid';
+import { JobRing } from '@/components/viz/JobRing';
+import { PaperTank } from '@/components/viz/PaperTank';
+import { useCountUp } from '@/components/viz/motion';
 
+/**
+ * The shop owner's first screen. It answers three questions in order: is money
+ * coming in, is anything needing me, and are my printers working. Everything
+ * else is a click away. Plain words and one clear action per item, because this
+ * is read by someone at a counter between customers.
+ */
 export default function OverviewPage() {
   const [period, setPeriod] = React.useState<Period>('month');
+  const [metric, setMetric] = React.useState<TrendMetric>('revenue');
 
   const summary = useApi<{ range: Range; summary: Summary; comparison: Comparison | null }>(
     `/reports/summary${buildQuery({ period })}`
   );
+  // One daily series feeds both the trend and the calendar.
   const series = useApi<{ range: Range; bucket: Period; series: SeriesPoint[] }>(
-    `/reports/series${buildQuery({ period })}`
+    `/reports/series${buildQuery({ period, bucket: 'day' })}`
   );
   const attention = useApi<{ count: number; jobs: AttentionRow[] }>('/attention');
   const printers = useApi<{ count: number; printers: PrinterRow[] }>('/printers');
 
   const s = summary.data?.summary;
   const cmp = summary.data?.comparison ?? null;
-  const trendLabel = TREND_LABEL[period];
   const offline = printers.data?.printers.filter((p) => p.status === 'offline').length ?? 0;
   const needsAttention = attention.data?.count ?? 0;
-
-  const greeting = useGreeting();
+  const lowPaper =
+    printers.data?.printers.filter((p) => p.status !== 'offline' && p.paperLevel !== null && p.paperLevel < 20).length ?? 0;
   const allClear =
     !attention.loading && !printers.loading && !attention.error && !printers.error &&
-    needsAttention === 0 && offline === 0;
-  const lowPaper = printers.data?.printers.filter(
-    (p) => p.status !== 'offline' && p.paperLevel !== null && p.paperLevel < 20
-  ).length ?? 0;
+    needsAttention === 0 && offline === 0 && lowPaper === 0;
+
+  const greeting = useGreeting();
+  const heroValue = useCountUp(metric === 'revenue' ? (s?.revenue ?? 0) : (s?.paidJobs ?? 0));
+  const paidJobs = s?.paidJobs ?? 0;
+  const ring = [
+    { key: 'done', label: 'Printed', value: s?.completedJobs ?? 0, color: 'rgb(var(--color-primary))' },
+    { key: 'busy', label: 'Printing now', value: s?.inProgressJobs ?? 0, color: 'rgb(var(--color-info))' },
+    { key: 'waiting', label: 'Paid, waiting to print', value: Math.max(0, paidJobs - (s?.completedJobs ?? 0) - (s?.inProgressJobs ?? 0) - (s?.failedJobs ?? 0)), color: 'rgb(var(--color-warning))' },
+    { key: 'failed', label: 'Could not print', value: s?.failedJobs ?? 0, color: 'rgb(var(--color-error))' },
+  ];
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6 sm:space-y-7">
       <PageHeader
-        eyebrow={greeting.date ? `${greeting.hello} · ${greeting.date}` : '\u00a0'}
+        eyebrow={greeting.date ? `${greeting.hello} · ${greeting.date}` : ' '}
         title="Overview"
-        subtitle="Here’s how your QR points are doing."
-        actions={
-          <PeriodFilter
-            value={period}
-            onChange={setPeriod}
-            timezone={summary.data?.range.timezone}
-          />
-        }
+        subtitle="Money coming in, anything that needs you, and your printers."
+        actions={<PeriodFilter value={period} onChange={setPeriod} timezone={summary.data?.range.timezone} />}
       />
 
-      {/* Anything needing a human comes before the vanity metrics. When there
-          is nothing, say so: silence reads as "still loading" or "broken". */}
-      {(needsAttention > 0 || offline > 0 || lowPaper > 0) && (
-        <section aria-labelledby="needs-you">
-          <h2 id="needs-you" className="eyebrow mb-2.5">
-            Needs you
-          </h2>
-          <Card className="divide-y divide-border/70 overflow-hidden">
+      {/* Anything needing a person comes first. When there is nothing, say so plainly. */}
+      {!allClear && (needsAttention > 0 || offline > 0 || lowPaper > 0) && (
+        <section aria-labelledby="needs-you" className="rise" style={{ ['--i' as string]: 0 }}>
+          <h2 id="needs-you" className="eyebrow mb-2.5">Needs you</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {needsAttention > 0 && (
-              <AlertRow
-                href="/attention"
-                tone="warning"
-                icon="alert"
-                title={`${needsAttention} paid ${needsAttention === 1 ? 'job' : 'jobs'} not printed`}
-                body="Customers have paid. For refunds, contact MPrnt."
-              />
+              <NeedsRow href="/attention" tone="warning" icon="alert" title={`${needsAttention} ${needsAttention === 1 ? 'job' : 'jobs'} paid but not printed`} body="Tap to see them. Refunds are done by MPrnt." />
             )}
             {offline > 0 && (
-              <AlertRow
-                href="/printers"
-                tone="error"
-                icon="printer"
-                title={`${offline} ${offline === 1 ? 'printer' : 'printers'} offline`}
-                body="Jobs cannot be printed while a QR point has no printer online."
-              />
+              <NeedsRow href="/printers" tone="error" icon="printer" title={`${offline} ${offline === 1 ? 'printer is' : 'printers are'} offline`} body="Customers cannot print on an offline printer." />
             )}
             {lowPaper > 0 && (
-              <AlertRow
-                href="/printers"
-                tone="info"
-                icon="inbox"
-                title={`Paper running low on ${lowPaper} ${lowPaper === 1 ? 'printer' : 'printers'}`}
-                body="Below 20%. Refill before the next rush."
-              />
+              <NeedsRow href="/printers" tone="info" icon="inbox" title={`Paper is low on ${lowPaper} ${lowPaper === 1 ? 'printer' : 'printers'}`} body="Refill it before the next rush." />
             )}
-          </Card>
+          </div>
         </section>
       )}
 
       {allClear && (
-        <div className="flex items-center gap-3 rounded-2xl bg-success/10 px-4 py-3 text-sm">
-          <span className="w-7 h-7 rounded-full bg-success/15 text-success flex items-center justify-center flex-shrink-0">
-            <Icon name="check" className="w-4 h-4" />
+        <div className="rise flex items-center gap-3 rounded-2xl bg-success/10 px-4 py-3.5 text-sm" style={{ ['--i' as string]: 0 }}>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+            <Icon name="check" className="h-4 w-4" />
           </span>
           <p className="text-text">
-            <span className="font-semibold">All clear.</span>{' '}
-            <span className="text-text-muted">Every paid job has printed and every printer is online.</span>
+            <span className="font-semibold">All good.</span>{' '}
+            <span className="text-text-muted">Every paid job has printed and every printer is working.</span>
           </p>
         </div>
       )}
@@ -126,200 +109,203 @@ export default function OverviewPage() {
           <ErrorState message={summary.error} onRetry={summary.reload} />
         </Card>
       ) : (
-        <StatStrip>
-          <Stat
-            bare
-            label="Revenue"
-            value={currency(s?.revenue ?? 0)}
-            hint={s ? `${number(s.paidJobs)} paid jobs` : undefined}
-            icon={<Icon name="chart" className="w-3.5 h-3.5" />}
-            loading={summary.loading}
-            trend={
-              cmp
-                ? {
-                    pct: cmp.change.revenuePct,
-                    hasCurrent: cmp.current.revenue > 0,
-                    label: trendLabel,
-                  }
-                : undefined
-            }
-          />
-          <Stat
-            bare
-            label="Pages printed"
-            value={number(s?.pagesPrinted ?? 0)}
-            hint={s ? `${number(s.colorPages)} colour · ${number(s.bwPages)} b/w` : undefined}
-            icon={<Icon name="printer" className="w-3.5 h-3.5" />}
-            loading={summary.loading}
-          />
-          <Stat
-            bare
-            label="Completed"
-            value={number(s?.completedJobs ?? 0)}
-            hint={
-              s?.fulfilmentRate !== null && s?.fulfilmentRate !== undefined
-                ? `${s.fulfilmentRate}% of paid jobs`
-                : undefined
-            }
-            tone={s && s.fulfilmentRate !== null && s.fulfilmentRate < 90 ? 'warning' : 'default'}
-            icon={<Icon name="check" className="w-3.5 h-3.5" />}
-            loading={summary.loading}
-            trend={
-              cmp
-                ? {
-                    pct: pctChange(cmp.current.completedJobs, cmp.previous.completedJobs),
-                    hasCurrent: cmp.current.completedJobs > 0,
-                    label: trendLabel,
-                  }
-                : undefined
-            }
-          />
-          <Stat
-            bare
-            label="Failed"
-            value={number(s?.failedJobs ?? 0)}
-            hint={s ? `avg print ${duration(s.avgPrintSeconds)}` : undefined}
-            tone={s && s.failedJobs > 0 ? 'error' : 'default'}
-            icon={<Icon name="alert" className="w-3.5 h-3.5" />}
-            loading={summary.loading}
-            trend={
-              cmp
-                ? {
-                    pct: pctChange(cmp.current.failedJobs, cmp.previous.failedJobs),
-                    hasCurrent: cmp.current.failedJobs > 0,
-                    // More failures is worse, so an increase reads red.
-                    invert: true,
-                    label: trendLabel,
-                  }
-                : undefined
-            }
-          />
-        </StatStrip>
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-12">
+          {/* The main figure and its chart. */}
+          <Card className="rise lg:col-span-8 p-4 sm:p-6" as="section" style={{ ['--i' as string]: 1 }}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-text-muted">
+                  {metric === 'revenue' ? 'Money collected' : 'Paid jobs'} this {PERIOD_WORD[period]}
+                </p>
+                <p className="mt-1 text-[2.25rem] font-semibold leading-none tracking-tight text-text tabular sm:text-[2.75rem]">
+                  {metric === 'revenue' ? currency(heroValue) : number(Math.round(heroValue))}
+                </p>
+                {cmp && (
+                  <div className="mt-2">
+                    <Trend
+                      pct={metric === 'revenue' ? cmp.change.revenuePct : pctChange(cmp.current.paidJobs, cmp.previous.paidJobs)}
+                      hasCurrent={metric === 'revenue' ? cmp.current.revenue > 0 : cmp.current.paidJobs > 0}
+                      label={TREND_LABEL[period]}
+                    />
+                  </div>
+                )}
+              </div>
+              <div role="group" aria-label="Show" className="flex rounded-full bg-surface-sunken p-1">
+                {(['revenue', 'jobs'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMetric(m)}
+                    aria-pressed={metric === m}
+                    className={`min-h-[40px] rounded-full px-4 text-sm font-medium transition-colors ${
+                      metric === m ? 'bg-surface text-text shadow-card' : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    {m === 'revenue' ? 'Money' : 'Jobs'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              {series.error ? (
+                <ErrorState message={series.error} onRetry={series.reload} />
+              ) : series.loading ? (
+                <div className="skeleton h-56 w-full" />
+              ) : (
+                <AreaTrend series={series.data?.series ?? []} metric={metric} />
+              )}
+            </div>
+
+            <dl className="mt-6 grid grid-cols-1 gap-3 border-t border-border/70 pt-5 sm:grid-cols-3">
+              <Fact label="Pages printed" value={number(s?.pagesPrinted ?? 0)} note={`${number(s?.colorPages ?? 0)} colour, ${number(s?.bwPages ?? 0)} black & white`} />
+              <Fact label="Average bill" value={currency(s?.averageOrderValue ?? 0)} note="Per paid job" />
+              <Fact label="Usual print time" value={duration(s?.avgPrintSeconds ?? null)} note="From start to finish" />
+            </dl>
+          </Card>
+
+          {/* How the paid jobs ended up. */}
+          <Card className="rise lg:col-span-4 p-4 sm:p-6" as="section" style={{ ['--i' as string]: 2 }}>
+            <h2 className="text-[15px] font-semibold text-text">How paid jobs ended</h2>
+            <p className="mt-0.5 text-xs text-text-muted">Tap a row to see its share.</p>
+            <div className="mt-5">
+              {summary.loading ? (
+                <div className="skeleton mx-auto h-[168px] w-[168px] rounded-full" />
+              ) : (
+                <JobRing segments={ring} centreLabel="paid jobs" />
+              )}
+            </div>
+            {s && s.fulfilmentRate !== null && (
+              <p className="mt-4 border-t border-border/70 pt-4 text-sm text-text-muted">
+                <span className="font-semibold text-text">{s.fulfilmentRate}%</span> of paid jobs were printed.
+              </p>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Printers, as plain tanks: the paper inside is the reading. */}
+      <Card className="rise p-4 sm:p-6" as="section" style={{ ['--i' as string]: 3 }}>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-text">Your printers</h2>
+            <p className="mt-0.5 text-xs text-text-muted">
+              {printers.data ? `${printers.data.count - offline} of ${printers.data.count} working` : 'Checking…'}
+            </p>
+          </div>
+          <Link href="/printers" className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-accent hover:underline">
+            Manage printers <Icon name="arrowRight" className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        {printers.loading ? (
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-40" />)}
+          </div>
+        ) : printers.data?.printers.length ? (
+          <ul className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+            {printers.data.printers.slice(0, 8).map((p) => <PrinterTile key={p.printerId} printer={p} />)}
+          </ul>
+        ) : (
+          <EmptyState title="No printers yet" message="MPrnt sets up your printers. Ask us to add one." icon={<Icon name="printer" className="h-6 w-6" />} />
+        )}
+      </Card>
+
+      {s && (
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-12">
+          <Card className="rise lg:col-span-7 p-4 sm:p-6" as="section" style={{ ['--i' as string]: 4 }}>
+            <h2 className="text-[15px] font-semibold text-text">Busiest days</h2>
+            <p className="mt-0.5 mb-5 text-xs text-text-muted">Each square is a day. Darker means more money came in.</p>
+            {series.loading ? <div className="skeleton h-32" /> : <DayGrid series={series.data?.series ?? []} />}
+          </Card>
+
+          <Card className="rise lg:col-span-5 p-4 sm:p-6" as="section" style={{ ['--i' as string]: 5 }}>
+            <h2 className="text-[15px] font-semibold text-text">From visit to print</h2>
+            <p className="mt-0.5 mb-5 text-xs text-text-muted">How many customers got through each step.</p>
+            <Steps s={s} />
+          </Card>
+        </div>
       )}
 
       <RevenueSplitCard period={period} />
-
       <BillingCard />
-
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader title="Revenue" subtitle={rangeLabel(summary.data?.range)} />
-          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-            {series.error ? (
-              <ErrorState message={series.error} onRetry={series.reload} />
-            ) : (
-              <RevenueChart series={series.data?.series ?? []} loading={series.loading} />
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Activity"
-            subtitle="From visit to printed page"
-            action={<ViewAll href="/sessions" label="Sessions" />}
-          />
-          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-            {summary.loading ? (
-              <div className="space-y-4 pt-1">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="skeleton h-8" />
-                ))}
-              </div>
-            ) : (
-              <>
-                {/* A funnel: each bar is relative to sessions started, so the
-                    drop-off between steps is visible at a glance. */}
-                <dl className="space-y-3.5">
-                  <FunnelRow label="Sessions started" value={s?.sessions ?? 0} of={s?.sessions ?? 0} />
-                  <FunnelRow label="Jobs created" value={s?.totalJobs ?? 0} of={s?.sessions ?? 0} />
-                  <FunnelRow label="Paid" value={s?.paidJobs ?? 0} of={s?.sessions ?? 0} />
-                  <FunnelRow label="Completed" value={s?.completedJobs ?? 0} of={s?.sessions ?? 0} />
-                </dl>
-                <dl className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-border/70">
-                  <div>
-                    <dt className="text-xs text-text-muted">In progress</dt>
-                    <dd className="text-lg font-semibold text-text tabular mt-0.5">
-                      {number(s?.inProgressJobs ?? 0)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-text-muted">Average order</dt>
-                    <dd className="text-lg font-semibold text-text tabular mt-0.5">
-                      {currency(s?.averageOrderValue ?? 0)}
-                    </dd>
-                  </div>
-                </dl>
-              </>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader
-          title="Printers"
-          subtitle={
-            printers.data
-              ? `${printers.data.count - offline} of ${printers.data.count} online`
-              : 'Loading…'
-          }
-          action={<ViewAll href="/printers" label="Printers" />}
-        />
-        {printers.loading ? (
-          <div className="px-4 pb-4 sm:px-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="skeleton h-24" />
-            ))}
-          </div>
-        ) : printers.data?.printers.length ? (
-          <ul className="px-4 pb-4 sm:px-5 sm:pb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {printers.data.printers.slice(0, 8).map((p) => (
-              <li
-                key={p.printerId}
-                className="rounded-xl border border-border/70 bg-surface-secondary/60 p-3.5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-text truncate">{p.name}</p>
-                    <p className="text-xs text-text-muted truncate">
-                      {p.kiosk.code} · {p.kiosk.name}
-                    </p>
-                  </div>
-                  <StatusPill status={p.status} />
-                </div>
-                {p.status === 'offline' ? (
-                  // A paper level from before it went quiet would look live.
-                  <p className="text-xs text-error mt-3">
-                    {p.secondsSinceHeartbeat !== null
-                      ? `Last seen ${relativeAge(p.secondsSinceHeartbeat)}`
-                      : 'Never connected'}
-                  </p>
-                ) : (
-                  <Meter label="Paper" value={p.paperLevel} />
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            title="No printers yet"
-            message="Enroll a Raspberry Pi to start printing."
-            icon={<Icon name="printer" className="w-6 h-6" />}
-          />
-        )}
-      </Card>
     </div>
   );
 }
 
-const ALERT_TONE = {
+const PERIOD_WORD: Record<Period, string> = { day: 'day', week: 'week', month: 'month', year: 'year' };
+
+/** One printer, in plain words: working or not, and how much paper is left. */
+function PrinterTile({ printer: p }: { printer: PrinterRow }) {
+  const offline = p.status === 'offline';
+  return (
+    <li className="rounded-2xl border border-border/70 bg-surface-secondary/50 p-4 transition-colors hover:border-accent/40">
+      <Link href="/printers" className="flex items-start gap-4 min-h-[44px]">
+        <PaperTank value={offline ? null : p.paperLevel} live={!offline} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-text">{p.name}</span>
+          <span className="block truncate text-xs text-text-muted">{p.kiosk.name}</span>
+          <span className={`mt-2 inline-flex items-center gap-1.5 text-xs font-medium ${offline ? 'text-error' : 'text-success'}`}>
+            <span className={`h-2 w-2 rounded-full ${offline ? 'bg-error' : 'bg-success live-dot'}`} aria-hidden="true" />
+            {offline
+              ? p.secondsSinceHeartbeat !== null
+                ? `Offline · last seen ${relativeAge(p.secondsSinceHeartbeat)}`
+                : 'Offline · never connected'
+              : 'Working'}
+          </span>
+          {!offline && p.paperLevel !== null && p.paperLevel < 20 && (
+            <span className="mt-1 block text-xs font-medium text-warning">Paper low</span>
+          )}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/** Started, sent a job, paid, printed: four plain bars, each against the first. */
+function Steps({ s }: { s: Summary }) {
+  const rows = [
+    { label: 'Started a session', value: s.sessions },
+    { label: 'Sent a print job', value: s.totalJobs },
+    { label: 'Paid', value: s.paidJobs },
+    { label: 'Printed', value: s.completedJobs },
+  ];
+  return (
+    <ol className="space-y-4">
+      {rows.map((r) => {
+        const pct = s.sessions > 0 ? Math.min(100, (r.value / s.sessions) * 100) : 0;
+        return (
+          <li key={r.label}>
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="text-text-muted">{r.label}</span>
+              <span className="font-semibold tabular text-text">{number(r.value)}</span>
+            </div>
+            <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-surface-sunken" aria-hidden="true">
+              <div className="h-full rounded-full bg-gradient-to-r from-primary-light to-primary transition-[width] duration-700" style={{ width: `${pct}%` }} />
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function Fact({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-medium text-text-muted">{label}</dt>
+      <dd className="mt-0.5 text-lg font-semibold tabular text-text">{value}</dd>
+      <dd className="text-xs text-text-muted">{note}</dd>
+    </div>
+  );
+}
+
+const TONE = {
   warning: 'bg-warning/10 text-warning',
   error: 'bg-error/10 text-error',
   info: 'bg-info/10 text-info',
 } as const;
 
-function AlertRow({
+function NeedsRow({
   href,
   tone,
   icon,
@@ -327,91 +313,26 @@ function AlertRow({
   body,
 }: {
   href: string;
-  tone: keyof typeof ALERT_TONE;
+  tone: keyof typeof TONE;
   icon: React.ComponentProps<typeof Icon>['name'];
   title: string;
   body: string;
 }) {
   return (
-    <Link
-      href={href}
-      className="group flex items-center gap-3.5 px-4 py-3.5 sm:px-5 hover:bg-surface-secondary/70 transition-colors"
-    >
-      <span
-        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${ALERT_TONE[tone]}`}
-      >
-        <Icon name={icon} className="w-[18px] h-[18px]" />
+    <Link href={href} className="group flex min-h-[64px] items-center gap-3.5 rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-card transition-colors hover:border-accent/40">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${TONE[tone]}`}>
+        <Icon name={icon} className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-text">{title}</span>
-        <span className="block text-xs text-text-muted mt-0.5">{body}</span>
+        <span className="mt-0.5 block text-xs text-text-muted">{body}</span>
       </span>
-      <Icon
-        name="chevronRight"
-        className="w-4 h-4 text-text-muted flex-shrink-0 transition-transform group-hover:translate-x-0.5"
-      />
+      <Icon name="chevronRight" className="h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }
 
-function ViewAll({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline min-h-[44px]"
-    >
-      View all<span className="sr-only"> {label.toLowerCase()}</span>
-      <Icon name="arrowRight" className="w-3.5 h-3.5" />
-    </Link>
-  );
-}
-
-function FunnelRow({ label, value, of }: { label: string; value: number; of: number }) {
-  const pct = of > 0 ? Math.min(100, (value / of) * 100) : 0;
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="text-[13px] text-text-muted">{label}</dt>
-        <dd className="text-sm font-semibold text-text tabular">{number(value)}</dd>
-      </div>
-      <div className="mt-1.5 h-1.5 rounded-full bg-surface-sunken overflow-hidden" aria-hidden="true">
-        <div
-          className="h-full rounded-full bg-accent/70 transition-[width] duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Meter({ label, value }: { label: string; value: number | null }) {
-  if (value === null) {
-    return <p className="text-xs text-text-muted mt-3">{label} level not reported</p>;
-  }
-  const low = value < 20;
-  return (
-    <div className="mt-3">
-      <div className="flex justify-between text-xs">
-        <span className="text-text-muted">{label}</span>
-        <span className={`tabular font-medium ${low ? 'text-warning' : 'text-text'}`}>
-          {value}%{low && ' · low'}
-        </span>
-      </div>
-      <div className="mt-1 h-1 rounded-full bg-surface-sunken overflow-hidden" aria-hidden="true">
-        <div
-          className={`h-full rounded-full ${low ? 'bg-warning' : 'bg-accent/60'}`}
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/**
- * Time-of-day greeting and today's date. Computed after mount: the server
- * does not know the viewer's clock, and rendering it there would mismatch on
- * hydration.
- */
+/** Time-of-day greeting. Computed after mount, so the server's clock never leaks into the markup. */
 function useGreeting(): { hello: string; date: string } {
   const [value, setValue] = React.useState({ hello: '', date: '' });
   React.useEffect(() => {
@@ -425,21 +346,12 @@ function useGreeting(): { hello: string; date: string } {
   return value;
 }
 
-function rangeLabel(range?: Range): string | undefined {
-  if (!range) return undefined;
-  return `${range.from} to ${range.to}`;
-}
-
-/**
- * The comparison window is like-for-like: this period so far against the same
- * span of the previous one. The wording says so, because "vs last month" would
- * suggest the whole of last month.
- */
+/** Like for like: this point in the period against the same point in the last one. */
 const TREND_LABEL: Record<Period, string> = {
-  day: 'vs this time yesterday',
-  week: 'vs this point last week',
-  month: 'vs this point last month',
-  year: 'vs this point last year',
+  day: 'compared with this time yesterday',
+  week: 'compared with the same point last week',
+  month: 'compared with the same point last month',
+  year: 'compared with the same point last year',
 };
 
 function pctChange(current: number, previous: number): number | null {

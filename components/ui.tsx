@@ -21,13 +21,16 @@ export function Card({
   children,
   className = '',
   as: Tag = 'div',
+  style,
 }: {
   children: React.ReactNode;
   className?: string;
   as?: 'div' | 'section' | 'article' | 'li';
+  style?: React.CSSProperties;
 }) {
   return (
     <Tag
+      style={style}
       // A caller's own background or border colour (e.g. a warning callout)
       // replaces the default rather than competing with it in CSS order.
       className={`${/(^|\s)bg-/.test(className) ? '' : 'bg-surface'} border ${
