@@ -4,6 +4,7 @@ import React, { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Field, inputClass } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { MprntLogo } from '@/components/MprntLogo';
 import { safeNextPath } from '@/lib/security';
 
 function LoginForm() {
@@ -44,7 +45,7 @@ function LoginForm() {
         // Distinct guidance per failure mode: a locked account and a wrong
         // password need different actions from the person reading this.
         if (res.status === 503) {
-          setError(body.message || 'The MPrnt backend is not reachable right now.');
+          setError(body.message || 'The MPRNT backend is not reachable right now.');
         } else if (res.status === 423) {
           setError('Too many failed attempts. This account is locked for 15 minutes.');
         } else if (res.status === 429) {
@@ -85,12 +86,7 @@ function LoginForm() {
         />
         <div className="absolute -right-24 -bottom-24 w-[28rem] h-[28rem] rounded-full bg-white/5 blur-2xl" />
 
-        <span className="relative flex items-center gap-2.5">
-          <span className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
-            <Icon name="printer" className="w-5 h-5" />
-          </span>
-          <span className="text-base font-semibold tracking-tight">MPrnt</span>
-        </span>
+        <MprntLogo variant="full" className="relative h-20 w-auto text-white" />
 
         <div className="relative max-w-md">
           <p className="font-[family-name:var(--font-display)] text-[2.75rem] leading-[1.05] tracking-tight">
@@ -101,18 +97,13 @@ function LoginForm() {
           </p>
         </div>
 
-        <p className="relative text-xs text-white/50">MPrnt Admin</p>
+        <p className="relative text-xs text-white/50">MPRNT Admin</p>
       </aside>
 
       <div className="flex items-center justify-center p-5 sm:p-8">
       <div className="w-full max-w-sm">
         <div className="mb-8">
-          <span
-            aria-hidden="true"
-            className="lg:hidden inline-flex w-11 h-11 rounded-xl bg-gradient-to-b from-primary to-primary-dark items-center justify-center text-white mb-5"
-          >
-            <Icon name="printer" className="w-6 h-6" />
-          </span>
+          <MprntLogo variant="full" title="MPRNT" className="lg:hidden h-16 w-auto text-primary mb-5" />
           <h1 className="page-title">Welcome back</h1>
           <p className="text-sm text-text-muted mt-1.5">Sign in to manage your printers.</p>
         </div>
@@ -173,7 +164,7 @@ function LoginForm() {
         </form>
 
         <p className="text-xs text-text-muted mt-8 pt-5 border-t border-border/70 leading-relaxed">
-          Accounts are issued by your MPrnt administrator.
+          Accounts are issued by your MPRNT administrator.
           <br />
           Lost your password? Ask them to reset it.
         </p>

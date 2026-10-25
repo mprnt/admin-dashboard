@@ -22,7 +22,7 @@ interface PricingInfo {
  * ("organization", "kiosk"); these are what a shop recognises.
  */
 const SCOPE_LABEL: Record<string, string> = {
-  platform: 'MPrnt standard',
+  platform: 'MPRNT standard',
   organization: 'Your shop',
   kiosk: 'QR point',
 };
@@ -30,7 +30,7 @@ const SCOPE_LABEL: Record<string, string> = {
 /**
  * The rates that apply to this shop.
  *
- * Read-only: pricing is set by MPrnt. Rates are never edited in place, so the
+ * Read-only: pricing is set by MPRNT. Rates are never edited in place, so the
  * history below is also the record of what customers were charged and when.
  */
 export default function PricingPage() {
@@ -45,7 +45,7 @@ export default function PricingPage() {
       <PageHeader title="Pricing" subtitle="Rates that apply to your QR points" />
 
       <ContactLine subject="Pricing enquiry">
-        Pricing is set by MPrnt. To discuss your rates:
+        Pricing is set by MPRNT. To discuss your rates:
       </ContactLine>
 
       <Card>

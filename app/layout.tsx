@@ -14,7 +14,7 @@ const display = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: 'MPrnt Admin',
+  title: 'MPRNT Admin',
   description: 'Manage QR points, printers, staff and revenue',
 };
 

@@ -28,7 +28,7 @@ const REASON: Record<string, string> = {
 /**
  * Two audiences read this page, and the backend decides what each sees:
  *
- *  - A shop sees only what its own staff did. Actions taken by MPrnt are not
+ *  - A shop sees only what its own staff did. Actions taken by MPRNT are not
  *    returned to them at all.
  *  - The platform sees everything, and can narrow by who acted, by shop (via
  *    the switcher) and by action.

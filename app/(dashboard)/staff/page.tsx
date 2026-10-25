@@ -53,7 +53,7 @@ export default function StaffPage() {
       {canWrite && (
         <p className="text-xs text-text-muted flex items-start gap-2">
           <Icon name="shield" className="w-4 h-4 flex-shrink-0 mt-px" />
-          New accounts are issued by MPrnt. Ask your MPrnt contact to add someone to your shop.
+          New accounts are issued by MPRNT. Ask your MPRNT contact to add someone to your shop.
         </p>
       )}
 

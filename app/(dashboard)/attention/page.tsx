@@ -21,8 +21,8 @@ import { ContactLine } from '@/components/ContactSupport';
  * This is the page that costs money when nobody looks at it: every row is a
  * customer who has been charged and has nothing to show for it.
  *
- * Refunds are issued by MPrnt, not from here, so a job that has been waiting
- * long enough carries a pre-filled message to MPrnt rather than a button.
+ * Refunds are issued by MPRNT, not from here, so a job that has been waiting
+ * long enough carries a pre-filled message to MPRNT rather than a button.
  */
 export default function AttentionPage() {
   const { data, error, loading, reload } = useApi<{ count: number; jobs: AttentionRow[] }>(
@@ -53,7 +53,7 @@ export default function AttentionPage() {
                 over an hour
               </p>
               <p className="text-sm text-text-muted mt-0.5">
-                These are unlikely to print on their own. For a refund, contact MPrnt.
+                These are unlikely to print on their own. For a refund, contact MPRNT.
               </p>
             </div>
           </div>
@@ -111,7 +111,7 @@ export default function AttentionPage() {
                     subject={`Refund request: job ${job.jobId}`}
                     body={`Job ID: ${job.jobId}\nQR point: ${job.kiosk.code}\nAmount: ${currency(job.amount)}\nPaid: ${dateTime(job.createdAt)}\n\nPlease refund this customer.`}
                   >
-                    For a refund, contact MPrnt:
+                    For a refund, contact MPRNT:
                   </ContactLine>
                 )}
               </li>

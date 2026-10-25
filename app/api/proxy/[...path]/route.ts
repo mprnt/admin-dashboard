@@ -142,7 +142,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   } catch {
     console.error(`[proxy] Cannot reach the backend at ${API_BASE}`);
     return NextResponse.json(
-      { message: 'Cannot reach the MPrnt backend. Is it running?' },
+      { message: 'Cannot reach the MPRNT backend. Is it running?' },
       { status: 503 }
     );
   }
@@ -170,7 +170,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
       // reach the browser even though the replay failed.
       console.error(`[proxy] Cannot reach the backend at ${API_BASE}`);
       const res = NextResponse.json(
-        { message: 'Cannot reach the MPrnt backend. Is it running?' },
+        { message: 'Cannot reach the MPRNT backend. Is it running?' },
         { status: 503 }
       );
       setAuthCookies(res, refreshed.tokens, refreshed.profile);

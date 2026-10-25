@@ -48,14 +48,14 @@ const INVOICE_LABEL: Record<Invoice['status'], { text: string; tone: string }> =
   waived: { text: 'Waived', tone: 'bg-text-muted/10 text-text-muted' },
 };
 
-/** What the shop needs to know, in its own words. Read only: changes go through MPrnt. */
+/** What the shop needs to know, in its own words. Read only: changes go through MPRNT. */
 function headline(c: NonNullable<BillingResponse['contract']>): { text: string; tone: 'ok' | 'warn' | 'bad' } {
   const next = c.nextPayment;
   switch (c.phase) {
     case 'awaiting_hardware':
-      return { text: 'Your printer kit is waiting for payment. MPrnt sets up your station once it is paid.', tone: 'warn' };
+      return { text: 'Your printer kit is waiting for payment. MPRNT sets up your station once it is paid.', tone: 'warn' };
     case 'not_live':
-      return { text: 'Your kit is paid. Your subscription starts when MPrnt confirms you are live.', tone: 'ok' };
+      return { text: 'Your kit is paid. Your subscription starts when MPRNT confirms you are live.', tone: 'ok' };
     case 'free':
       return {
         text: `Your first month is free. Your first software payment of ${currency(next?.amount ?? c.terms.monthlyPrice)} is due on ${calendarLong(next?.dueOn ?? null)}.`,
@@ -68,12 +68,12 @@ function headline(c: NonNullable<BillingResponse['contract']>): { text: string; 
       };
     case 'payment_due':
       return {
-        text: `A payment of ${currency(next?.amount ?? 0)} was due on ${calendarLong(next?.dueOn ?? null)}. Please pay MPrnt to keep your subscription up to date.`,
+        text: `A payment of ${currency(next?.amount ?? 0)} was due on ${calendarLong(next?.dueOn ?? null)}. Please pay MPRNT to keep your subscription up to date.`,
         tone: 'warn',
       };
     case 'overdue':
       return {
-        text: `A payment of ${currency(next?.amount ?? 0)} from ${calendarLong(next?.dueOn ?? null)} is overdue. Please pay MPrnt as soon as you can.`,
+        text: `A payment of ${currency(next?.amount ?? 0)} from ${calendarLong(next?.dueOn ?? null)} is overdue. Please pay MPRNT as soon as you can.`,
         tone: 'bad',
       };
   }
@@ -171,7 +171,7 @@ export function BillingCard() {
         )}
 
         <p className="text-xs text-text-muted">
-          To change anything on this subscription, contact MPrnt. Payments are recorded by MPrnt.
+          To change anything on this subscription, contact MPRNT. Payments are recorded by MPRNT.
         </p>
       </div>
     </Card>

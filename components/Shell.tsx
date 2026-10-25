@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Icon } from '@/components/Icon';
+import { MprntLogo } from '@/components/MprntLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SupportCard } from '@/components/ContactSupport';
 import { useApi } from '@/lib/useApi';
@@ -167,8 +168,8 @@ export function Shell({
           ))}
         </nav>
 
-        {/* MPrnt's contact details in reach from every page; refunds and
-            pricing are things only MPrnt can do for a shop. */}
+        {/* MPRNT's contact details in reach from every page; refunds and
+            pricing are things only MPRNT can do for a shop. */}
         <div className="px-3 pb-3">
           <SupportCard compact />
         </div>
@@ -401,15 +402,10 @@ function Avatar({ name }: { name: string }) {
 function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
-      <span
-        aria-hidden="true"
-        className="w-8 h-8 rounded-[10px] bg-gradient-to-b from-primary to-primary-dark flex items-center justify-center text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]"
-      >
-        <Icon name="printer" className="w-[18px] h-[18px]" />
-      </span>
-      <span className="text-[15px] font-semibold tracking-tight text-text">
-        MPrnt
-        {!compact && <span className="text-text-muted font-normal"> Admin</span>}
+      <MprntLogo variant="mark" aria-hidden="true" className="h-8 w-auto shrink-0 text-primary" />
+      <span className="flex items-baseline gap-1.5 text-text">
+        <MprntLogo variant="wordmark" title="MPRNT" className="h-4 w-auto" />
+        {!compact && <span className="text-[15px] text-text-muted font-normal">Admin</span>}
       </span>
     </span>
   );

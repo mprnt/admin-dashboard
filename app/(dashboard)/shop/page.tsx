@@ -19,7 +19,7 @@ import { Icon } from '@/components/Icon';
 import { ContactLine } from '@/components/ContactSupport';
 
 /**
- * Your shop: who you are to MPrnt, how long you have been here, and what you
+ * Your shop: who you are to MPRNT, how long you have been here, and what you
  * have earned since.
  *
  * Everything on this page comes from one endpoint that takes no parameters.
@@ -93,7 +93,7 @@ export default function ShopPage() {
             )}
             {!loading && since && (
               <p className="text-sm text-text-muted mt-1.5">
-                {since === 'today' ? 'Joined today' : `With MPrnt for ${since}`}
+                {since === 'today' ? 'Joined today' : `With MPRNT for ${since}`}
               </p>
             )}
           </div>
@@ -160,7 +160,7 @@ export default function ShopPage() {
         <Card>
           <CardHeader
             title="Your setup"
-            subtitle="What is connected to MPrnt"
+            subtitle="What is connected to MPRNT"
             action={
               <Link
                 href="/printers"
@@ -179,7 +179,7 @@ export default function ShopPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Details on file" subtitle="How MPrnt reaches you" />
+          <CardHeader title="Details on file" subtitle="How MPRNT reaches you" />
           <dl className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-3 text-sm">
             <Detail label="Email" value={data?.contactEmail} loading={loading} />
             <Detail label="Phone" value={data?.contactPhone} loading={loading} />
@@ -189,7 +189,7 @@ export default function ShopPage() {
       </div>
 
       <ContactLine subject="Update my shop details">
-        Something here out of date, or need a change? Contact MPrnt:
+        Something here out of date, or need a change? Contact MPRNT:
       </ContactLine>
     </div>
   );

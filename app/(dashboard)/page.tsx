@@ -80,7 +80,7 @@ export default function OverviewPage() {
           <h2 id="needs-you" className="eyebrow mb-2.5">Needs you</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {needsAttention > 0 && (
-              <NeedsRow href="/attention" tone="warning" icon="alert" title={`${needsAttention} ${needsAttention === 1 ? 'job' : 'jobs'} paid but not printed`} body="Tap to see them. Refunds are done by MPrnt." />
+              <NeedsRow href="/attention" tone="warning" icon="alert" title={`${needsAttention} ${needsAttention === 1 ? 'job' : 'jobs'} paid but not printed`} body="Tap to see them. Refunds are done by MPRNT." />
             )}
             {offline > 0 && (
               <NeedsRow href="/printers" tone="error" icon="printer" title={`${offline} ${offline === 1 ? 'printer is' : 'printers are'} offline`} body="Customers cannot print on an offline printer." />
@@ -206,7 +206,7 @@ export default function OverviewPage() {
             {printers.data.printers.slice(0, 8).map((p) => <PrinterTile key={p.printerId} printer={p} />)}
           </ul>
         ) : (
-          <EmptyState title="No printers yet" message="MPrnt sets up your printers. Ask us to add one." icon={<Icon name="printer" className="h-6 w-6" />} />
+          <EmptyState title="No printers yet" message="MPRNT sets up your printers. Ask us to add one." icon={<Icon name="printer" className="h-6 w-6" />} />
         )}
       </Card>
 

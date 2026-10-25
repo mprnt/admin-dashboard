@@ -3,8 +3,8 @@ import { Icon } from '@/components/Icon';
 import { SUPPORT, supportMailto, supportTel } from '@/lib/support';
 
 /**
- * How shop staff reach MPrnt. Shown only to shop accounts: a super admin is
- * MPrnt, so offering them MPrnt's own phone number would be noise.
+ * How shop staff reach MPRNT. Shown only to shop accounts: a super admin is
+ * MPRNT, so offering them MPRNT's own phone number would be noise.
  *
  * Real mailto:/tel: links rather than a form: on a phone, "Call" should dial,
  * and an email from their own client leaves them a copy of what they sent.
@@ -12,11 +12,11 @@ import { SUPPORT, supportMailto, supportTel } from '@/lib/support';
 export function SupportCard({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`rounded-2xl border border-border/70 bg-surface shadow-card ${compact ? 'p-3' : 'p-4'}`}>
-      <p className="text-sm font-semibold text-text">Need help from MPrnt?</p>
+      <p className="text-sm font-semibold text-text">Need help from MPRNT?</p>
       <p className="text-xs text-text-muted mt-0.5">Refunds, pricing, printers or anything else.</p>
       <div className="grid grid-cols-2 gap-2 mt-3">
         <a
-          href={supportMailto('MPrnt support request')}
+          href={supportMailto('MPRNT support request')}
           className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-[38px] rounded-xl border border-border bg-surface text-[13px] font-medium text-text hover:bg-surface-secondary"
         >
           <Icon name="mail" className="w-4 h-4" />
@@ -47,7 +47,7 @@ export function SupportCard({ compact = false }: { compact?: boolean }) {
 }
 
 /**
- * One-line "contact MPrnt" with both channels, for places that tell a shop
+ * One-line "contact MPRNT" with both channels, for places that tell a shop
  * admin to get in touch (refunds, pricing). The email is pre-addressed.
  */
 export function ContactLine({

@@ -1,8 +1,8 @@
 /**
- * MPrnt's own contact details, shown to shop staff so they can reach the
+ * MPRNT's own contact details, shown to shop staff so they can reach the
  * platform directly (refunds, pricing, anything a shop cannot do itself).
  *
- * Mirrors SITE in MPrnt/main/src/lib/site.ts, the official details from the
+ * Mirrors SITE in MPRNT/main/src/lib/site.ts, the official details from the
  * Terms & Privacy Policy. Change both together. Env vars override for staging.
  */
 export const SUPPORT = {

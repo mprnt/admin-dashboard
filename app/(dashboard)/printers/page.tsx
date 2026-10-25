@@ -28,7 +28,7 @@ import { EditKioskModal } from '@/components/FleetModals';
  * point and is taken by whichever printer there is idle and capable, so two
  * machines at one counter share the load and cover for each other.
  *
- * A printer is the machine itself. A station is a printer MPrnt also supplied
+ * A printer is the machine itself. A station is a printer MPRNT also supplied
  * the enclosure for - the same row, differently labelled.
  *
  * What a person can do here depends on their permissions:
@@ -37,7 +37,7 @@ import { EditKioskModal } from '@/components/FleetModals';
  *  - everyone else: read-only status.
  *
  * Adding a QR point, enrolling a printer and rotating its key are done by
- * MPrnt, because enrolling mints a secret. The page says so rather than
+ * MPRNT, because enrolling mints a secret. The page says so rather than
  * leaving a shop looking for a button that is not there.
  */
 export default function PrintersPage() {
@@ -60,7 +60,7 @@ export default function PrintersPage() {
   async function revoke(p: PrinterRow) {
     if (
       !confirm(
-        `Revoke ${p.station.label}? It is cut off at once and cannot print. Contact MPrnt to restore it.`
+        `Revoke ${p.station.label}? It is cut off at once and cannot print. Contact MPRNT to restore it.`
       )
     ) {
       return;
@@ -130,7 +130,7 @@ export default function PrintersPage() {
             message="No printer is connected yet. Paid jobs will queue until one is."
             icon={<Icon name="printer" className="w-6 h-6" />}
             action={
-              <ContactLine subject="Connect a printer to my shop">Contact MPrnt to set one up:</ContactLine>
+              <ContactLine subject="Connect a printer to my shop">Contact MPRNT to set one up:</ContactLine>
             }
           />
         )}
@@ -183,14 +183,14 @@ export default function PrintersPage() {
             title="No QR points yet"
             icon={<Icon name="building" className="w-6 h-6" />}
             action={
-              <ContactLine subject="Set up a QR point for my shop">Contact MPrnt to add one:</ContactLine>
+              <ContactLine subject="Set up a QR point for my shop">Contact MPRNT to add one:</ContactLine>
             }
           />
         )}
       </Card>
 
       <p className="text-xs text-text-muted">
-        QR points and printers are added and re-keyed by MPrnt. Need another, or something
+        QR points and printers are added and re-keyed by MPRNT. Need another, or something
         replaced? Use Contact in the sidebar.
       </p>
 
@@ -305,7 +305,7 @@ function PrinterItem({
   );
 }
 
-/** Says whether a unit is an MPrnt station or the shop's own printer. */
+/** Says whether a unit is an MPRNT station or the shop's own printer. */
 function StationBadge({ isStation }: { isStation: boolean }) {
   return (
     <span
@@ -314,8 +314,8 @@ function StationBadge({ isStation }: { isStation: boolean }) {
       }`}
       title={
         isStation
-          ? 'An MPrnt station. The printer inside it is this row.'
-          : 'Your own printer, connected to MPrnt.'
+          ? 'An MPRNT station. The printer inside it is this row.'
+          : 'Your own printer, connected to MPRNT.'
       }
     >
       {isStation ? 'Station' : 'Printer'}

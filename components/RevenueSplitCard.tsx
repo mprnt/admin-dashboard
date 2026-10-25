@@ -36,7 +36,7 @@ function pct(value: number | null | undefined): string {
 
 /**
  * Your share of the revenue, for partners on Model 2 · Option A. Read-only: the
- * split is set by MPrnt, and this card shows it and what it has earned you.
+ * split is set by MPRNT, and this card shows it and what it has earned you.
  *
  * It renders nothing for a partner on any other model, so the shop never sees a
  * split it does not have.
@@ -50,7 +50,7 @@ export function RevenueSplitCard({ period }: { period: Period }) {
   const split = view.data;
   const s = summary.data;
   const cover = split.partnerDefault
-    ? `You keep ${pct(split.partnerDefault.partnerSharePct)} of each paid sale. MPrnt keeps ${pct(split.partnerDefault.platformSharePct)}.`
+    ? `You keep ${pct(split.partnerDefault.partnerSharePct)} of each paid sale. MPRNT keeps ${pct(split.partnerDefault.platformSharePct)}.`
     : 'Your split has not started yet, so sales are not split.';
 
   return (
@@ -63,7 +63,7 @@ export function RevenueSplitCard({ period }: { period: Period }) {
         <div className="grid grid-cols-2 border-t border-border/70 lg:grid-cols-4 [&>*:nth-child(odd)]:border-r [&>*:nth-child(-n+2)]:border-b lg:[&>*]:border-b-0 lg:[&>*:not(:last-child)]:border-r [&>*]:border-border/70">
           <Stat label="Collected" value={currency(s.grossRevenue)} bare />
           <Stat label="Your share" value={currency(s.partnerRevenue)} bare tone="success" />
-          <Stat label="MPrnt share" value={currency(s.platformRevenue)} bare />
+          <Stat label="MPRNT share" value={currency(s.platformRevenue)} bare />
           <Stat
             label="Not split"
             value={currency(s.unsplitRevenue)}
@@ -83,7 +83,7 @@ export function RevenueSplitCard({ period }: { period: Period }) {
                   'No split yet'
                 ) : (
                   <>
-                    You {pct(k.partnerSharePct)} · MPrnt {pct(k.platformSharePct)}
+                    You {pct(k.partnerSharePct)} · MPRNT {pct(k.platformSharePct)}
                     <span className="ml-2 text-xs">
                       {k.source === 'qr_point' ? 'set for this QR point' : 'partner default'}
                     </span>

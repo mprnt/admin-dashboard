@@ -144,7 +144,7 @@ export interface PrinterRow {
     lastSeenIp: string | null;
   };
   /**
-   * Whether this printer is presented as an MPrnt station.
+   * Whether this printer is presented as an MPRNT station.
    *
    * A station contains exactly one printer, so there is no separate station
    * entity: this is a label on the printer, and every figure — revenue, jobs,
