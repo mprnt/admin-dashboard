@@ -21,9 +21,9 @@ import { BillingCard } from '@/components/BillingCard';
 import { Icon } from '@/components/Icon';
 import { AreaTrend, type TrendMetric } from '@/components/viz/AreaTrend';
 import { DayGrid } from '@/components/viz/DayGrid';
+import { HighlightStrip, type Highlight } from '@/components/viz/HighlightStrip';
 import { JobRing } from '@/components/viz/JobRing';
 import { PaperTank } from '@/components/viz/PaperTank';
-import { useCountUp } from '@/components/viz/motion';
 
 /**
  * The shop owner's first screen. It answers three questions in order: is money
@@ -56,13 +56,41 @@ export default function OverviewPage() {
     needsAttention === 0 && offline === 0 && lowPaper === 0;
 
   const greeting = useGreeting();
-  const heroValue = useCountUp(metric === 'revenue' ? (s?.revenue ?? 0) : (s?.paidJobs ?? 0));
   const paidJobs = s?.paidJobs ?? 0;
   const ring = [
     { key: 'done', label: 'Printed', value: s?.completedJobs ?? 0, color: 'rgb(var(--color-primary))' },
     { key: 'busy', label: 'Printing now', value: s?.inProgressJobs ?? 0, color: 'rgb(var(--color-info))' },
     { key: 'waiting', label: 'Paid, waiting to print', value: Math.max(0, paidJobs - (s?.completedJobs ?? 0) - (s?.inProgressJobs ?? 0) - (s?.failedJobs ?? 0)), color: 'rgb(var(--color-warning))' },
     { key: 'failed', label: 'Could not print', value: s?.failedJobs ?? 0, color: 'rgb(var(--color-error))' },
+  ];
+
+  // The three cards in the strip at the top: money, printing, printers.
+  const highlights: Highlight[] = [
+    {
+      key: 'money',
+      eyebrow: `Money this ${PERIOD_WORD[period]}`,
+      figure: currency(s?.revenue ?? 0),
+      line: `${number(paidJobs)} paid ${paidJobs === 1 ? 'job' : 'jobs'}`,
+      href: '/sessions',
+      action: 'See print history',
+      featured: true,
+    },
+    {
+      key: 'printed',
+      eyebrow: 'Printed',
+      figure: number(s?.completedJobs ?? 0),
+      line: s?.fulfilmentRate == null ? 'No paid jobs yet' : `${s.fulfilmentRate}% of paid jobs printed`,
+      href: '/sessions',
+      action: 'See what printed',
+    },
+    {
+      key: 'printers',
+      eyebrow: 'Printers working',
+      figure: printers.data ? `${printers.data.count - offline} of ${printers.data.count}` : '…',
+      line: offline > 0 ? `${offline} offline right now` : 'All printers online',
+      href: '/printers',
+      action: 'Manage printers',
+    },
   ];
 
   return (
@@ -104,6 +132,8 @@ export default function OverviewPage() {
         </div>
       )}
 
+      {s && <HighlightStrip items={highlights} />}
+
       {summary.error ? (
         <Card>
           <ErrorState message={summary.error} onRetry={summary.reload} />
@@ -114,12 +144,10 @@ export default function OverviewPage() {
           <Card className="rise lg:col-span-8 p-4 sm:p-6" as="section" style={{ ['--i' as string]: 1 }}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-text-muted">
-                  {metric === 'revenue' ? 'Money collected' : 'Paid jobs'} this {PERIOD_WORD[period]}
-                </p>
-                <p className="mt-1 text-[2.25rem] font-semibold leading-none tracking-tight text-text tabular sm:text-[2.75rem]">
-                  {metric === 'revenue' ? currency(heroValue) : number(Math.round(heroValue))}
-                </p>
+                <h2 className="text-[15px] font-semibold text-text">
+                  {metric === 'revenue' ? 'Money' : 'Paid jobs'}, day by day
+                </h2>
+                <p className="mt-0.5 text-sm text-text-muted">Tap the chart to see any day.</p>
                 {cmp && (
                   <div className="mt-2">
                     <Trend
@@ -210,21 +238,11 @@ export default function OverviewPage() {
         )}
       </Card>
 
-      {s && (
-        <div className="grid gap-4 sm:gap-5 lg:grid-cols-12">
-          <Card className="rise lg:col-span-7 p-4 sm:p-6" as="section" style={{ ['--i' as string]: 4 }}>
-            <h2 className="text-[15px] font-semibold text-text">Busiest days</h2>
-            <p className="mt-0.5 mb-5 text-xs text-text-muted">Each square is a day. Darker means more money came in.</p>
-            {series.loading ? <div className="skeleton h-32" /> : <DayGrid series={series.data?.series ?? []} />}
-          </Card>
-
-          <Card className="rise lg:col-span-5 p-4 sm:p-6" as="section" style={{ ['--i' as string]: 5 }}>
-            <h2 className="text-[15px] font-semibold text-text">From visit to print</h2>
-            <p className="mt-0.5 mb-5 text-xs text-text-muted">How many customers got through each step.</p>
-            <Steps s={s} />
-          </Card>
-        </div>
-      )}
+      <Card className="rise p-4 sm:p-6" as="section" style={{ ['--i' as string]: 4 }}>
+        <h2 className="text-[15px] font-semibold text-text">Busiest days</h2>
+        <p className="mt-0.5 mb-5 text-sm text-text-muted">Each square is a day. Darker means more money came in.</p>
+        {series.loading ? <div className="skeleton h-32" /> : <DayGrid series={series.data?.series ?? []} />}
+      </Card>
 
       <RevenueSplitCard period={period} />
       <BillingCard />
@@ -258,34 +276,6 @@ function PrinterTile({ printer: p }: { printer: PrinterRow }) {
         </span>
       </Link>
     </li>
-  );
-}
-
-/** Started, sent a job, paid, printed: four plain bars, each against the first. */
-function Steps({ s }: { s: Summary }) {
-  const rows = [
-    { label: 'Started a session', value: s.sessions },
-    { label: 'Sent a print job', value: s.totalJobs },
-    { label: 'Paid', value: s.paidJobs },
-    { label: 'Printed', value: s.completedJobs },
-  ];
-  return (
-    <ol className="space-y-4">
-      {rows.map((r) => {
-        const pct = s.sessions > 0 ? Math.min(100, (r.value / s.sessions) * 100) : 0;
-        return (
-          <li key={r.label}>
-            <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-text-muted">{r.label}</span>
-              <span className="font-semibold tabular text-text">{number(r.value)}</span>
-            </div>
-            <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-surface-sunken" aria-hidden="true">
-              <div className="h-full rounded-full bg-gradient-to-r from-primary-light to-primary transition-[width] duration-700" style={{ width: `${pct}%` }} />
-            </div>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 

@@ -4,41 +4,35 @@ import React from 'react';
 import { useApi } from '@/lib/useApi';
 import { useProfile } from '@/lib/useProfile';
 import { api, ApiError, type KioskRow, type PrinterRow } from '@/lib/api';
-import { dateTime, relativeAge } from '@/lib/format';
+import { plural, printerState, qrState, type Tone } from '@/lib/plain';
 import {
   Button,
   Card,
-  CardHeader,
   EmptyState,
   ErrorState,
   PageHeader,
   SkeletonRows,
-  StatusPill,
   Toast,
 } from '@/components/ui';
+import { Callout, StateBadge, TechnicalDetails } from '@/components/Plain';
 import { Icon } from '@/components/Icon';
 import { ContactLine } from '@/components/ContactSupport';
 import { EditKioskModal } from '@/components/FleetModals';
+import { PaperTank } from '@/components/viz/PaperTank';
+
+const TONE_RANK: Record<Tone, number> = { bad: 0, warn: 1, info: 2, neutral: 3, good: 4 };
+const LOW_PAPER = 20;
 
 /**
- * Your QR points and the printers behind them.
+ * Your QR points, and the printers behind each one.
  *
- * A QR point is a place customers scan, and the queue of jobs waiting there -
- * not a physical box. It can have several printers: a paid job queues at the QR
- * point and is taken by whichever printer there is idle and capable, so two
- * machines at one counter share the load and cover for each other.
+ * A QR point is the place a customer scans to print. A job goes to whichever
+ * printer at that point is free, so two printers at one counter cover for each
+ * other. Problems are listed first, with the next step written out.
  *
- * A printer is the machine itself. A station is a printer MPRNT also supplied
- * the enclosure for - the same row, differently labelled.
- *
- * What a person can do here depends on their permissions:
- *  - printers:manage: edit their QR points, and revoke a printer as an
- *    emergency lever (a stolen Pi should be cut off at once);
- *  - everyone else: read-only status.
- *
- * Adding a QR point, enrolling a printer and rotating its key are done by
- * MPRNT, because enrolling mints a secret. The page says so rather than
- * leaving a shop looking for a button that is not there.
+ * Adding a QR point or a printer, and changing a printer's key, are done by
+ * MPRNT, because they create secrets. The page says so, rather than leaving the
+ * owner looking for a button that is not there.
  */
 export default function PrintersPage() {
   const profile = useProfile();
@@ -48,150 +42,119 @@ export default function PrintersPage() {
   const kiosks = useApi<{ count: number; kiosks: KioskRow[] }>('/kiosks');
 
   const [editKiosk, setEditKiosk] = React.useState<KioskRow | null>(null);
-  const [toast, setToast] = React.useState<{ message: string; tone: 'success' | 'error' } | null>(
-    null
-  );
+  const [toast, setToast] = React.useState<{ message: string; tone: 'success' | 'error' } | null>(null);
 
   const reloadAll = () => {
     printers.reload();
     kiosks.reload();
   };
 
-  async function revoke(p: PrinterRow) {
+  async function turnOff(p: PrinterRow) {
     if (
       !confirm(
-        `Revoke ${p.station.label}? It is cut off at once and cannot print. Contact MPRNT to restore it.`
+        `Turn off ${p.station.label}? It will stop printing straight away. Contact MPRNT to switch it back on.`
       )
     ) {
       return;
     }
     try {
       await api.post(`/printers/${encodeURIComponent(p.printerId)}/revoke`);
-      setToast({ message: `${p.station.label} revoked`, tone: 'success' });
+      setToast({ message: `${p.station.label} is turned off`, tone: 'success' });
       reloadAll();
     } catch (e) {
-      setToast({ message: e instanceof ApiError ? e.message : 'Could not revoke', tone: 'error' });
+      setToast({ message: e instanceof ApiError ? e.message : 'Could not turn it off', tone: 'error' });
     }
   }
 
   const printerList = printers.data?.printers ?? [];
-  const silent = printerList.filter((p) => p.silent).length;
-  const unenrolledKiosks = (kiosks.data?.kiosks ?? []).filter((k) => k.printersTotal === 0);
+  const kioskList = kiosks.data?.kiosks ?? [];
+  const loading = printers.loading || kiosks.loading;
+  const failed = printers.error || kiosks.error;
+
+  // One group per QR point, with the ones that need attention first.
+  const groups = kioskList
+    .map((kiosk) => ({
+      kiosk,
+      printers: printerList.filter((p) => p.kiosk.id === kiosk.id),
+    }))
+    .sort((a, b) => TONE_RANK[qrState(a.kiosk).tone] - TONE_RANK[qrState(b.kiosk).tone]);
+
+  const notConnected = printerList.filter((p) => printerState(p).label === 'Not connected').length;
+  const turnedOff = printerList.filter((p) => p.status === 'revoked').length;
+  const noPrinter = kioskList.filter((k) => k.printersTotal === 0).length;
+  const paperLow = printerList.filter(
+    (p) => p.status !== 'revoked' && p.paperLevel !== null && p.paperLevel < LOW_PAPER
+  ).length;
+  const problems = [
+    notConnected > 0 && `${plural(notConnected, 'printer')} not connected. Check the power and internet on it.`,
+    turnedOff > 0 && `${plural(turnedOff, 'printer')} turned off. Contact MPRNT to switch it back on.`,
+    noPrinter > 0 && `${plural(noPrinter, 'QR point')} has no printer, so nothing will print there.`,
+    paperLow > 0 && `Paper is low on ${plural(paperLow, 'printer')}. Refill the tray.`,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Printers & QR points" subtitle="Live status of every Raspberry Pi" />
+      <PageHeader
+        title="Printers & QR points"
+        subtitle="Where customers print, and whether each printer is ready."
+      />
 
-      {(silent > 0 || unenrolledKiosks.length > 0) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {silent > 0 && (
-            <Card className="p-4 border-error/40 bg-error/5">
-              <p className="font-bold text-text">
-                {silent} {silent === 1 ? 'printer has' : 'printers have'} gone quiet
-              </p>
-              <p className="text-xs text-text-muted mt-0.5">
-                No heartbeat recently. Paid jobs at that QR point wait for another free printer
-                there, or until it reconnects.
-              </p>
-            </Card>
-          )}
-          {unenrolledKiosks.length > 0 && (
-            <Card className="p-4 border-warning/40 bg-warning/5">
-              <p className="font-bold text-text">
-                {unenrolledKiosks.length}{' '}
-                {unenrolledKiosks.length === 1 ? 'QR point has' : 'QR points have'} no printer
-              </p>
-              <p className="text-xs text-text-muted mt-0.5">
-                {unenrolledKiosks.map((k) => k.kioskId).join(', ')} - customers can pay there, but
-                nothing will print.
-              </p>
-            </Card>
-          )}
-        </div>
+      <p className="text-sm text-text-muted">
+        A QR point is the spot where a customer scans to print. Each one can have more than one printer,
+        and a job goes to whichever printer is free.
+      </p>
+
+      {!loading && !failed && (
+        problems.length > 0 ? (
+          <Callout tone={notConnected + turnedOff + noPrinter > 0 ? 'bad' : 'warn'} title="Some printers need you">
+            <ul className="list-disc space-y-1 pl-5">
+              {problems.map((text) => (
+                <li key={text}>{text}</li>
+              ))}
+            </ul>
+            <ContactLine className="mt-2" subject="Printer problem">
+              If a printer stays off after you check it, contact MPRNT:
+            </ContactLine>
+          </Callout>
+        ) : (
+          <Callout tone="good" title="Everything is working">
+            All {plural(printerList.length, 'printer')} ready for customers.
+          </Callout>
+        )
       )}
 
-      {/* ---------------- Printers ---------------- */}
-      <Card>
-        <CardHeader title="Printers" subtitle={printerSubtitle(printerList)} />
-
-        {printers.error ? (
-          <ErrorState message={printers.error} onRetry={printers.reload} />
-        ) : printers.loading ? (
+      {failed ? (
+        <Card>
+          <ErrorState message={failed} onRetry={reloadAll} />
+        </Card>
+      ) : loading ? (
+        <Card>
           <SkeletonRows rows={3} />
-        ) : printerList.length ? (
-          <ul className="divide-y divide-border">
-            {printerList.map((p) => (
-              <PrinterItem key={p.printerId} printer={p} canManage={canManage} onRevoke={revoke} />
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            title="No printers connected"
-            message="No printer is connected yet. Paid jobs will queue until one is."
-            icon={<Icon name="printer" className="w-6 h-6" />}
-            action={
-              <ContactLine subject="Connect a printer to my shop">Contact MPRNT to set one up:</ContactLine>
-            }
-          />
-        )}
-      </Card>
-
-      {/* ---------------- QR points ---------------- */}
-      <Card>
-        <CardHeader
-          title="QR points"
-          subtitle={`${kiosks.data?.count ?? 0} total · one QR code each; jobs print on whichever printer there is free`}
-        />
-        {kiosks.error ? (
-          <ErrorState message={kiosks.error} onRetry={kiosks.reload} />
-        ) : kiosks.loading ? (
-          <SkeletonRows rows={2} />
-        ) : kiosks.data?.kiosks.length ? (
-          <ul className="divide-y divide-border">
-            {kiosks.data.kiosks.map((k) => (
-              <li key={k.id} className="flex items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <p className="font-semibold text-text truncate">
-                    <span className="font-mono">{k.kioskId}</span> · {k.name}
-                  </p>
-                  <p className="text-xs text-text-muted truncate">{k.location}</p>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="text-right hidden xs:block">
-                    <p className="text-sm font-semibold text-text tabular">
-                      {k.printersOnline}/{k.printersTotal}
-                    </p>
-                    <p className="text-xs text-text-muted">online</p>
-                  </div>
-                  <StatusPill status={k.status} />
-                  {canManage && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditKiosk(k)}
-                      aria-label={`Edit QR point ${k.kioskId}`}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
+        </Card>
+      ) : groups.length === 0 ? (
+        <Card>
           <EmptyState
             title="No QR points yet"
-            icon={<Icon name="building" className="w-6 h-6" />}
-            action={
-              <ContactLine subject="Set up a QR point for my shop">Contact MPRNT to add one:</ContactLine>
-            }
+            message="MPRNT sets up your QR points and printers."
+            icon={<Icon name="building" className="h-6 w-6" />}
+            action={<ContactLine subject="Set up a QR point for my shop">Contact MPRNT to add one:</ContactLine>}
           />
-        )}
-      </Card>
+        </Card>
+      ) : (
+        groups.map(({ kiosk, printers: inside }) => (
+          <QrPointCard
+            key={kiosk.id}
+            kiosk={kiosk}
+            printers={inside}
+            canManage={canManage}
+            onEdit={() => setEditKiosk(kiosk)}
+            onTurnOff={turnOff}
+          />
+        ))
+      )}
 
       <p className="text-xs text-text-muted">
-        QR points and printers are added and re-keyed by MPRNT. Need another, or something
-        replaced? Use Contact in the sidebar.
+        Need another QR point or printer, or one replaced? Contact MPRNT from the Contact box in the menu.
       </p>
 
       <EditKioskModal
@@ -209,145 +172,115 @@ export default function PrintersPage() {
   );
 }
 
-/**
- * One printer.
- *
- * A station is shown by its station name and a "Station" badge, but it is the
- * same row with the same printer id underneath: a station contains exactly one
- * printer, and that printer is what heartbeats, queues and earns.
- */
-function PrinterItem({
+function QrPointCard({
+  kiosk,
+  printers,
+  canManage,
+  onEdit,
+  onTurnOff,
+}: {
+  kiosk: KioskRow;
+  printers: PrinterRow[];
+  canManage: boolean;
+  onEdit: () => void;
+  onTurnOff: (p: PrinterRow) => void;
+}) {
+  const state = qrState(kiosk);
+  return (
+    <Card as="section" className="overflow-hidden">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold text-text">{kiosk.name}</h2>
+          {kiosk.location && <p className="text-sm text-text-muted">{kiosk.location}</p>}
+          <p className="mt-2 text-sm text-text">{state.detail}</p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <StateBadge label={state.label} tone={state.tone} />
+          {canManage && (
+            <Button size="sm" variant="secondary" onClick={onEdit} aria-label={`Change the name of ${kiosk.name}`}>
+              Change name
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {printers.length > 0 ? (
+        <ul className="divide-y divide-border border-t border-border/70">
+          {printers.map((p) => (
+            <PrinterLine key={p.printerId} printer={p} canManage={canManage} onTurnOff={onTurnOff} />
+          ))}
+        </ul>
+      ) : (
+        <p className="border-t border-border/70 px-4 py-4 text-sm text-text-muted sm:px-5">
+          No printer is connected here yet.
+        </p>
+      )}
+
+      <div className="border-t border-border/70 px-4 py-2 sm:px-5">
+        <TechnicalDetails>
+          <p>QR code ID: {kiosk.kioskId}</p>
+        </TechnicalDetails>
+      </div>
+    </Card>
+  );
+}
+
+function PrinterLine({
   printer: p,
   canManage,
-  onRevoke,
+  onTurnOff,
 }: {
   printer: PrinterRow;
   canManage: boolean;
-  onRevoke: (p: PrinterRow) => void;
+  onTurnOff: (p: PrinterRow) => void;
 }) {
-  const revoked = p.status === 'revoked';
-  const station = p.station.isStation;
+  const state = printerState(p);
+  const off = p.status === 'revoked';
+  const low = !off && p.paperLevel !== null && p.paperLevel < LOW_PAPER;
 
   return (
-    <li className={`p-4 sm:p-5 ${revoked ? 'opacity-70' : ''}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <span
-            aria-hidden="true"
-            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-              (p.status === 'online' || p.status === 'busy') && !p.silent
-                ? 'bg-success/10 text-success'
-                : revoked
-                  ? 'bg-text-muted/10 text-text-muted'
-                  : 'bg-error/10 text-error'
-            }`}
-          >
-            <Icon name={station ? 'building' : 'printer'} className="w-5 h-5" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-semibold text-text truncate">{p.station.label}</p>
-              <StationBadge isStation={station} />
-            </div>
-            <p className="text-xs text-text-muted truncate">
-              {p.kiosk.code} · {p.kiosk.name}
-            </p>
-            <p className="text-xs text-text-muted font-mono truncate mt-0.5">
-              {p.printerId}
-              {/* The printer's own name still matters when the station is
-                  named something else: it is what the Pi reports. */}
-              {station && p.station.name ? ` · printer "${p.name}"` : ''}
-            </p>
+    <li className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5 sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <span className="flex-shrink-0">
+          <PaperTank value={off ? null : p.paperLevel} live={state.tone === 'good' || state.tone === 'info'} width={30} height={56} />
+        </span>
+        <div className="min-w-0">
+          <p className="font-semibold text-text">{p.station.label}</p>
+          <p className="text-xs text-text-muted">
+            {p.capabilities.color ? 'Colour' : 'Black and white only'}
+            {' · '}
+            {p.capabilities.doubleSided ? 'double-sided' : 'single-sided only'}
+          </p>
+          <div className="mt-2">
+            <StateBadge label={state.label} tone={state.tone} />
+          </div>
+          <p className="mt-1.5 text-sm text-text-muted">{state.detail}</p>
+          {low && <p className="mt-1 text-sm font-medium text-warning">Paper is low. Refill the tray soon.</p>}
+          <p className="mt-1 text-xs text-text-muted">
+            Paper: {p.paperLevel !== null ? `${p.paperLevel}% left` : 'not reported'}
+            {' · '}
+            Ink: {p.inkLevelBlack !== null ? `${p.inkLevelBlack}% left` : 'not reported'}
+          </p>
+          <div className="mt-2">
+            <TechnicalDetails>
+              <p>Printer ID: {p.printerId}</p>
+              {p.station.isStation && p.name && <p>Name on the printer: {p.name}</p>}
+            </TechnicalDetails>
           </div>
         </div>
-        <StatusPill status={p.status} />
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-        <Metric
-          label="Last heartbeat"
-          value={
-            revoked
-              ? '-'
-              : p.secondsSinceHeartbeat !== null
-                ? relativeAge(p.secondsSinceHeartbeat)
-                : 'never'
-          }
-          warn={p.silent}
-          title={dateTime(p.lastHeartbeat)}
-        />
-        <Metric label="Active jobs" value={String(p.activeJobs)} />
-        <Metric
-          label="Paper"
-          value={p.paperLevel !== null ? `${p.paperLevel}%` : 'unknown'}
-          warn={p.paperLevel !== null && p.paperLevel < 15}
-        />
-        <Metric
-          label="Toner"
-          value={p.inkLevelBlack !== null ? `${p.inkLevelBlack}%` : 'unknown'}
-          warn={p.inkLevelBlack !== null && p.inkLevelBlack < 15}
-        />
-      </dl>
-
-      <p className="mt-2 text-xs text-text-muted">
-        {p.capabilities.color ? 'Colour' : 'Black & white only'}
-        {p.capabilities.doubleSided ? ' · double-sided' : ' · single-sided only'}
-      </p>
-
-      {canManage && !revoked && (
-        <div className="flex flex-wrap gap-2 mt-3">
-          <Button size="sm" variant="ghost" className="text-error" onClick={() => onRevoke(p)}>
-            Revoke
-          </Button>
-        </div>
+      {canManage && !off && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="self-start text-error sm:self-center"
+          onClick={() => onTurnOff(p)}
+          aria-label={`Turn off ${p.station.label}`}
+        >
+          Turn off
+        </Button>
       )}
     </li>
   );
-}
-
-/** Says whether a unit is an MPRNT station or the shop's own printer. */
-function StationBadge({ isStation }: { isStation: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap ${
-        isStation ? 'bg-accent/10 text-accent' : 'bg-text-muted/10 text-text-muted'
-      }`}
-      title={
-        isStation
-          ? 'An MPRNT station. The printer inside it is this row.'
-          : 'Your own printer, connected to MPRNT.'
-      }
-    >
-      {isStation ? 'Station' : 'Printer'}
-    </span>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  warn = false,
-  title,
-}: {
-  label: string;
-  value: string;
-  warn?: boolean;
-  title?: string;
-}) {
-  return (
-    <div title={title}>
-      <dt className="text-text-muted">{label}</dt>
-      <dd className={`font-semibold mt-0.5 ${warn ? 'text-warning' : 'text-text'}`}>{value}</dd>
-    </div>
-  );
-}
-
-function printerSubtitle(list: PrinterRow[]): string {
-  const revoked = list.filter((p) => p.status === 'revoked').length;
-  const live = list.length - revoked;
-  const printing = list.filter((p) => p.status === 'busy').length;
-  const parts = [`${live} active`];
-  if (printing > 0) parts.push(`${printing} printing`);
-  if (revoked > 0) parts.push(`${revoked} revoked`);
-  return parts.join(' · ');
 }

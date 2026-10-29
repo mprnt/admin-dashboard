@@ -63,6 +63,20 @@
         "cd /Users/akshatmahajan/super-admin && npx next dev -p 3003"
       ],
       "port": 3003
+    },
+    {
+      "name": "design-directions (static preview, temporary)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "design-directions"
+      ],
+      "port": 8765
     }
   ]
 }

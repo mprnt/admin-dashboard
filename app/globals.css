@@ -29,7 +29,7 @@
   --color-surface-sunken: 238 235 226;
   --color-border: 226 221 210;
   --color-text: 28 27 25;
-  --color-text-muted: 107 104 98;
+  --color-text-muted: 88 85 80;
 
   /* Status.
      These are used as TEXT on a surface, not just as fills, so each one is
@@ -62,7 +62,7 @@
   --color-surface-sunken: 12 12 11;
   --color-border: 46 45 42;
   --color-text: 238 237 233;
-  --color-text-muted: 158 155 149;
+  --color-text-muted: 182 179 173;
 
   --color-primary: 46 122 82;
   --color-primary-light: 96 200 145;
@@ -473,4 +473,112 @@ button:active:not(:disabled) {
 
 .pop-in {
   animation: pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* ============================================================
+   SHOP HOME
+   The owner's first screen: one soft hero with the day in one
+   sentence, then cards the owner swipes through like stories.
+   ============================================================ */
+
+.sky {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(155deg, rgb(var(--color-primary)) 0%, rgb(var(--color-primary-dark)) 100%);
+  color: #fff;
+}
+
+/* Two slow, blurred light pools drift behind the words. Decorative only. */
+.sky::before,
+.sky::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  filter: blur(56px);
+  opacity: 0.4;
+  pointer-events: none;
+  background: rgb(var(--color-primary-light));
+  animation: sky-drift-a 16s ease-in-out infinite alternate;
+}
+
+.sky::after {
+  right: -25%;
+  bottom: -35%;
+  background: rgb(var(--color-secondary-light));
+  animation-name: sky-drift-b;
+  animation-duration: 20s;
+}
+
+@keyframes sky-drift-a {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(14%, 10%) scale(1.12); }
+}
+
+@keyframes sky-drift-b {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-16%, -12%) scale(1.08); }
+}
+
+/* Horizontal stories: one card per swipe on a phone, a plain row on a laptop. */
+.snap-row {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.snap-row::-webkit-scrollbar {
+  display: none;
+}
+
+.snap-item {
+  flex: 0 0 86%;
+  scroll-snap-align: start;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .snap-item {
+    flex-basis: 48%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .snap-row {
+    overflow: visible;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .snap-item {
+    flex-basis: auto;
+  }
+}
+
+/* Gives a tap a visible response, which matters for people who are not sure
+   the screen registered their touch. */
+.press {
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+
+.press:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky::before,
+  .sky::after {
+    animation: none;
+  }
+
+  .press:active {
+    transform: none;
+  }
 }

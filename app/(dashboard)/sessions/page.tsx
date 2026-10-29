@@ -4,35 +4,37 @@ import React from 'react';
 import { useApi } from '@/lib/useApi';
 import { buildQuery, type Period, type Range, type SessionRow } from '@/lib/api';
 import { currency, dateTime, duration, number } from '@/lib/format';
-import {
-  Card,
-  CardHeader,
-  StatusPill,
-  EmptyState,
-  ErrorState,
-  SkeletonRows,
-  Button,
-  inputClass,
-} from '@/components/ui';
+import { jobState, plural, printSummary } from '@/lib/plain';
+import { Button, Card, CardHeader, EmptyState, ErrorState, SkeletonRows, PageHeader } from '@/components/ui';
+import { Callout, StateBadge, TechnicalDetails } from '@/components/Plain';
 import { PeriodFilter } from '@/components/PeriodFilter';
+import { Pagination } from '@/components/Pagination';
+import { LIST_BODY, LIST_CARD, LIST_PAGE, scrollListToTop } from '@/components/ListLayout';
 import { Icon } from '@/components/Icon';
 import { useProfile } from '@/lib/useProfile';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
-const STATUSES = ['', 'completed', 'failed', 'queued', 'printing', 'pending', 'cancelled'];
+/** The filters a shop owner actually wants, in their words. */
+const FILTERS: { value: string; label: string }[] = [
+  { value: '', label: 'All jobs' },
+  { value: 'completed', label: 'Printed' },
+  { value: 'failed', label: 'Could not print' },
+  { value: 'queued', label: 'Waiting' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 export default function SessionsPage() {
   const profile = useProfile();
   const [period, setPeriod] = React.useState<Period>('month');
-  const [status, setStatus] = React.useState('');
+  const [filter, setFilter] = React.useState('');
   const [page, setPage] = React.useState(0);
 
-  React.useEffect(() => setPage(0), [period, status]);
+  React.useEffect(() => setPage(0), [period, filter]);
 
   const query = buildQuery({
     period,
-    status: status || undefined,
+    status: filter || undefined,
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   });
@@ -45,7 +47,11 @@ export default function SessionsPage() {
 
   const canExport = profile?.permissions.includes('export:data');
   const total = data?.total ?? 0;
-  const pages = Math.ceil(total / PAGE_SIZE);
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const goTo = (next: number) => {
+    setPage(next);
+    scrollListToTop(listRef.current);
+  };
 
   function exportCsv() {
     // Goes through the proxy so the token is attached server-side; the browser
@@ -54,191 +60,73 @@ export default function SessionsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Sessions</h1>
-          <p className="text-sm text-text-muted mt-1.5">
-            Every print job, what it cost and whether it printed
-          </p>
-        </div>
-        {canExport && (
-          <Button variant="secondary" size="sm" onClick={exportCsv}>
-            <Icon name="download" className="w-4 h-4" />
-            Export CSV
-          </Button>
-        )}
-      </div>
+    <div className={LIST_PAGE}>
+      <PageHeader
+        title="Print history"
+        subtitle="Every job customers paid for, and what happened to it."
+        actions={
+          canExport ? (
+            <Button variant="secondary" size="sm" onClick={exportCsv}>
+              <Icon name="download" className="h-4 w-4" />
+              Download as spreadsheet
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex flex-col gap-3">
         <PeriodFilter value={period} onChange={setPeriod} timezone={data?.range.timezone} />
 
-        <div className="sm:ml-auto">
-          <label htmlFor="status-filter" className="sr-only">
-            Filter by status
-          </label>
-          <select
-            id="status-filter"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className={`${inputClass} sm:w-44`}
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s === '' ? 'All statuses' : s[0].toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
+        <div role="group" aria-label="Show jobs" className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value || 'all'}
+              type="button"
+              onClick={() => setFilter(f.value)}
+              aria-pressed={filter === f.value}
+              className={`min-h-[44px] rounded-full border px-4 text-sm font-medium transition-colors ${
+                filter === f.value
+                  ? 'border-primary bg-primary text-white'
+                  : 'border-border/70 bg-surface text-text hover:bg-surface-secondary'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* A short note on why the document itself isn't here - otherwise the
-          first question a shop owner asks is "where's the file?". */}
-      <p className="text-xs text-text-muted flex items-start gap-2">
-        <Icon name="shield" className="w-4 h-4 flex-shrink-0 mt-px" />
-        Customer documents are never shown here. You see what was printed and what it cost,
-        not what it contained.
-      </p>
+      <Callout tone="neutral" title="Customer documents are never shown here">
+        You see what was printed and what it cost, not what the document said.
+      </Callout>
 
-      <Card>
+      <Card className={LIST_CARD}>
         <CardHeader
-          title={loading ? 'Loading…' : `${number(total)} job${total === 1 ? '' : 's'}`}
+          title={loading ? 'Loading…' : `${number(total)} ${total === 1 ? 'job' : 'jobs'}`}
           subtitle={data ? `${data.range.from} to ${data.range.to}` : undefined}
         />
 
         {error ? (
           <ErrorState message={error} onRetry={reload} />
         ) : loading ? (
-          <SkeletonRows rows={6} />
+          <SkeletonRows rows={5} />
         ) : data && data.sessions.length > 0 ? (
           <>
-            {/* Desktop: a real table, which is the right structure for this data
-                and lets screen readers announce row/column relationships. */}
-            <div className="hidden md:block scroll-x">
-              <table className="w-full text-sm">
-                <caption className="sr-only">Print jobs for the selected period</caption>
-                <thead>
-                  <tr className="text-left text-text-muted bg-surface-secondary/70 border-y border-border/70">
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">When</th>
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">QR point</th>
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Print</th>
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Printer</th>
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right">Pages</th>
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5 text-right">Amount</th>
-                    <th scope="col" className="text-[11px] font-semibold uppercase tracking-wider px-5 py-2.5">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {data.sessions.map((row) => (
-                    <tr key={row.jobId} className="hover:bg-surface-secondary/70 transition-colors">
-                      <td className="px-5 py-3 whitespace-nowrap">
-                        <div className="text-text">{dateTime(row.createdAt)}</div>
-                        {row.durationSeconds !== null && (
-                          <div className="text-xs text-text-muted">
-                            took {duration(row.durationSeconds)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="text-text">{row.kiosk.code}</div>
-                        <div className="text-xs text-text-muted truncate max-w-[10rem]">
-                          {row.kiosk.name}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 whitespace-nowrap">
-                        <PrintSpec row={row} />
-                      </td>
-                      <td className="px-5 py-3 text-text-muted">
-                        {row.printer?.name ?? '-'}
-                      </td>
-                      <td className="px-5 py-3 text-right tabular text-text">
-                        {row.pages.printed}/{row.pages.sheets}
-                      </td>
-                      <td className="px-5 py-3 text-right tabular font-semibold text-text">
-                        {currency(row.amount)}
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex flex-col gap-1 items-start">
-                          <StatusPill status={row.status} />
-                          {row.paymentStatus !== 'paid' && (
-                            <StatusPill status={row.paymentStatus} />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div ref={listRef} className={LIST_BODY}>
+              <ul className="divide-y divide-border">
+                {data.sessions.map((row) => (
+                  <JobRow key={row.jobId} row={row} />
+                ))}
+              </ul>
             </div>
 
-            {/* Mobile: cards. A 7-column table on a 375px screen is unreadable
-                however much you scroll it. */}
-            <ul className="md:hidden divide-y divide-border">
-              {data.sessions.map((row) => (
-                <li key={row.jobId} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-text">{dateTime(row.createdAt)}</p>
-                      <p className="text-xs text-text-muted truncate">
-                        {row.kiosk.code} · {row.printer?.name ?? 'unassigned'}
-                      </p>
-                    </div>
-                    <p className="font-bold text-text tabular flex-shrink-0">
-                      {currency(row.amount)}
-                    </p>
-                  </div>
-
-                  <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                    <StatusPill status={row.status} />
-                    {row.paymentStatus !== 'paid' && <StatusPill status={row.paymentStatus} />}
-                    <span className="text-xs text-text-muted tabular">
-                      {row.pages.printed}/{row.pages.sheets} pages
-                    </span>
-                  </div>
-
-                  <div className="mt-2 text-xs text-text-muted">
-                    <PrintSpec row={row} />
-                  </div>
-
-                  {row.errorMessage && (
-                    <p className="mt-2 text-xs text-error">{row.errorMessage}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
-
-            {pages > 1 && (
-              <nav
-                aria-label="Pagination"
-                className="flex items-center justify-between gap-3 p-4 border-t border-border"
-              >
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <p className="text-sm text-text-muted tabular" aria-live="polite">
-                  Page {page + 1} of {pages}
-                </p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={page >= pages - 1}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </nav>
-            )}
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={goTo} label="Print history pages" />
           </>
         ) : (
           <EmptyState
-            title="No jobs in this period"
-            message="Try a wider date range, or clear the status filter."
-            icon={<Icon name="inbox" className="w-6 h-6" />}
+            title="No jobs here"
+            message={filter ? 'No jobs match this filter in the period. Try All jobs, or a wider period.' : 'No jobs in this period yet. Try a wider period.'}
+            icon={<Icon name="inbox" className="h-6 w-6" />}
           />
         )}
       </Card>
@@ -246,15 +134,53 @@ export default function SessionsPage() {
   );
 }
 
-function PrintSpec({ row }: { row: SessionRow }) {
-  const sides = row.settings.printSides === 'double' ? 'Double' : 'Single';
+/** One job, read top to bottom: what happened, what it cost, where and when. */
+function JobRow({ row }: { row: SessionRow }) {
+  const state = jobState(row);
+  const printed = row.pages.printed;
+  const sheets = row.pages.sheets;
+
   return (
-    <span className="text-text-muted">
-      {row.settings.colorMode === 'color' ? 'Colour' : 'B/W'}
-      {' · '}
-      <span className="lg:hidden">{sides}</span>
-      <span className="hidden lg:inline">{sides}-sided</span>
-      {row.settings.copies > 1 && ` · ${row.settings.copies}×`}
-    </span>
+    <li className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-semibold text-text tabular">
+            {currency(row.amount)}
+            <span className="font-normal text-text-muted">
+              {' '}· {plural(sheets, 'page')}
+            </span>
+          </p>
+          <p className="mt-0.5 text-sm text-text-muted">
+            {row.kiosk.name} · {dateTime(row.createdAt)}
+          </p>
+        </div>
+        <StateBadge label={state.label} tone={state.tone} />
+      </div>
+
+      <p className="mt-2 text-sm text-text-muted">
+        {printSummary(row.settings)}
+        {row.printer ? ` · printed on ${row.printer.name}` : ''}
+        {row.durationSeconds !== null ? ` · took ${duration(row.durationSeconds)}` : ''}
+      </p>
+      {printed < sheets && row.paymentStatus === 'paid' && (
+        <p className="mt-1 text-sm text-text-muted">
+          {printed} of {sheets} pages printed.
+        </p>
+      )}
+
+      {row.errorMessage && (
+        <div className="mt-2 text-sm">
+          <p className="text-error">What went wrong: {row.errorMessage}</p>
+          <p className="mt-0.5 text-text-muted">If this keeps happening, contact MPRNT.</p>
+        </div>
+      )}
+
+      <div className="mt-2">
+        <TechnicalDetails>
+          <p>Job ID: {row.jobId}</p>
+          {row.sessionCode && <p>Session code: {row.sessionCode}</p>}
+        </TechnicalDetails>
+      </div>
+    </li>
   );
 }

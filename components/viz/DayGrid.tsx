@@ -72,15 +72,19 @@ export function DayGrid({ series }: { series: SeriesPoint[] }) {
   return (
     <div>
       <div className="mb-3 flex min-h-[2.75rem] items-end justify-between gap-3">
-        <p className="text-xs text-text-muted">
+        <p className="text-sm text-text-muted">
           {shown ? (
             <span className="text-text">
-              <span className="font-semibold">{shown.ymd}</span>
+              <span className="font-semibold">
+                {parseDay(shown.ymd).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
               {' · '}
-              {shown.point ? `${currency(shown.point.revenue)} from ${number(shown.point.jobs)} jobs` : 'No sales'}
+              {shown.point
+                ? `${currency(shown.point.revenue)} from ${number(shown.point.jobs)} ${shown.point.jobs === 1 ? 'job' : 'jobs'}`
+                : 'No sales'}
             </span>
           ) : (
-            'Hover a day to see what it brought in.'
+            'Tap a day to see what it brought in.'
           )}
         </p>
         <div className="flex shrink-0 items-center gap-1 text-[10px] text-text-muted" aria-hidden="true">
@@ -123,9 +127,9 @@ export function DayGrid({ series }: { series: SeriesPoint[] }) {
                 onFocus={() => setHover(d.ymd)}
                 onClick={() => setHover(d.ymd)}
                 onMouseLeave={() => setHover(null)}
-                className={`h-[18px] w-[18px] rounded-[4px] transition-transform duration-150 sm:h-5 sm:w-5 ${
+                className={`h-[18px] w-[18px] rounded-[4px] sm:h-5 sm:w-5 ${
                   d.inRange ? LEVELS[lv] : 'bg-transparent'
-                } ${hover === d.ymd ? 'scale-125 ring-2 ring-accent/60' : ''} ${
+                } ${hover === d.ymd ? 'ring-2 ring-inset ring-accent/70' : ''} ${
                   d.inRange ? 'cursor-pointer' : 'pointer-events-none'
                 }`}
               />

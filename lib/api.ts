@@ -241,7 +241,12 @@ export interface PriceListRow {
   minCharge: number;
   effectiveFrom: string;
   createdAt: string;
+  /** Who published the rate: MPRNT for the platform default, or the shop itself. */
+  createdBy: 'platform' | 'shop' | null;
 }
+
+/** Who set a detail: the shop itself, or MPRNT on its behalf. */
+export type DetailsSource = 'platform' | 'shop';
 
 /**
  * The signed-in shop, as the shop itself may see it.
@@ -256,6 +261,18 @@ export interface ShopProfile {
   timezone: string;
   contactEmail: string | null;
   contactPhone: string | null;
+  contactUpdatedBy: DetailsSource | null;
+  contactUpdatedAt: string | null;
+  /** Bank and UPI. The account number is never sent: only its last four digits. */
+  payout: {
+    bankAccountHolder: string | null;
+    bankName: string | null;
+    bankIfsc: string | null;
+    bankAccountLast4: string | null;
+    upiId: string | null;
+    updatedBy: DetailsSource | null;
+    updatedAt: string | null;
+  };
   /** When the shop joined, UTC ISO. */
   memberSince: string;
   fleet: { qrPoints: number; printers: number; stations: number };

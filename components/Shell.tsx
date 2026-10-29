@@ -37,9 +37,9 @@ export interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/', label: 'Overview', icon: 'home', primary: true, group: 'operate' },
-  { href: '/sessions', label: 'Sessions', icon: 'receipt', permission: 'sessions:read', primary: true, group: 'operate' },
+  { href: '/sessions', label: 'Print history', icon: 'receipt', permission: 'sessions:read', primary: true, group: 'operate' },
   { href: '/printers', label: 'Printers', icon: 'printer', permission: 'printers:read', primary: true, group: 'operate' },
-  { href: '/attention', label: 'Attention', icon: 'alert', permission: 'reports:read', primary: true, group: 'operate' },
+  { href: '/attention', label: 'Needs you', icon: 'alert', permission: 'reports:read', primary: true, group: 'operate' },
   { href: '/pricing', label: 'Pricing', icon: 'tag', permission: 'pricing:read', group: 'manage' },
   { href: '/staff', label: 'Staff', icon: 'users', permission: 'staff:read', group: 'manage' },
   { href: '/shop', label: 'Your shop', icon: 'building', permission: 'reports:read', group: 'manage' },

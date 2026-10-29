@@ -41,6 +41,9 @@ const config: Config = {
         warning: 'rgb(var(--color-warning) / <alpha-value>)',
         info: 'rgb(var(--color-info) / <alpha-value>)',
       },
+      fontSize: {
+        xs: ['0.8125rem', { lineHeight: '1.2rem' }],
+      },
       boxShadow: {
         card: 'var(--shadow-card)',
         raised: 'var(--shadow-raised)',

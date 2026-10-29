@@ -17,6 +17,7 @@ import {
 } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { ContactLine } from '@/components/ContactSupport';
+import { ShopDetailsCard } from '@/components/ShopDetailsCard';
 
 /**
  * Your shop: who you are to MPRNT, how long you have been here, and what you
@@ -119,7 +120,7 @@ export default function ShopPage() {
         <StatStrip>
           <Stat
             bare
-            label="Revenue"
+            label="Money collected"
             value={currency(life?.revenue ?? 0)}
             hint={life ? `${number(life.paidJobs)} paid ${life.paidJobs === 1 ? 'job' : 'jobs'}` : undefined}
             icon={<Icon name="chart" className="w-3.5 h-3.5" />}
@@ -142,7 +143,7 @@ export default function ShopPage() {
           />
           <Stat
             bare
-            label="Average order"
+            label="Average bill"
             value={
               life && life.paidJobs > 0 ? currency(life.revenue / life.paidJobs) : currency(0)
             }
@@ -151,7 +152,7 @@ export default function ShopPage() {
           />
         </StatStrip>
         <p className="text-xs text-text-muted mt-2.5">
-          Revenue is what customers paid for jobs at your QR points. For this month, this week or
+          Money collected is what customers paid at your QR points. For this month, this week or
           a custom range, see the <Link href="/" className="text-accent hover:underline">Overview</Link>.
         </p>
       </section>
@@ -174,18 +175,11 @@ export default function ShopPage() {
           <dl className="px-4 pb-4 sm:px-5 sm:pb-5 grid grid-cols-3 gap-3">
             <Fact label="QR points" value={data?.fleet.qrPoints} loading={loading} />
             <Fact label="Printers" value={data?.fleet.printers} loading={loading} />
-            <Fact label="Stations" value={data?.fleet.stations} loading={loading} />
+            <Fact label="MPRNT stations" value={data?.fleet.stations} loading={loading} />
           </dl>
         </Card>
 
-        <Card>
-          <CardHeader title="Details on file" subtitle="How MPRNT reaches you" />
-          <dl className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-3 text-sm">
-            <Detail label="Email" value={data?.contactEmail} loading={loading} />
-            <Detail label="Phone" value={data?.contactPhone} loading={loading} />
-            <Detail label="Timezone" value={data?.timezone} loading={loading} />
-          </dl>
-        </Card>
+        <ShopDetailsCard data={data} loading={loading} onSaved={reload} />
       </div>
 
       <ContactLine subject="Update my shop details">
@@ -216,25 +210,3 @@ function Fact({
   );
 }
 
-function Detail({
-  label,
-  value,
-  loading,
-}: {
-  label: string;
-  value: string | null | undefined;
-  loading: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-text-muted">{label}</dt>
-      {loading ? (
-        <dd className="skeleton h-5 w-40" />
-      ) : (
-        <dd className={`font-medium text-right break-all ${value ? 'text-text' : 'text-text-muted'}`}>
-          {value || 'Not provided'}
-        </dd>
-      )}
-    </div>
-  );
-}

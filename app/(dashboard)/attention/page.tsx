@@ -1,130 +1,159 @@
 'use client';
 
+import React from 'react';
 import { useApi } from '@/lib/useApi';
 import type { AttentionRow } from '@/lib/api';
-import { currency, relativeAge, dateTime } from '@/lib/format';
-import {
-  Card,
-  CardHeader,
-  PageHeader,
-  StatusPill,
-  EmptyState,
-  ErrorState,
-  SkeletonRows,
-} from '@/components/ui';
+import { currency, dateTime, relativeAge } from '@/lib/format';
+import { jobState, plural } from '@/lib/plain';
+import { Card, CardHeader, EmptyState, ErrorState, PageHeader, SkeletonRows } from '@/components/ui';
+import { Callout, StateBadge, TechnicalDetails } from '@/components/Plain';
 import { Icon } from '@/components/Icon';
+import { Pagination } from '@/components/Pagination';
+import { LIST_BODY, LIST_CARD, LIST_PAGE, scrollListToTop } from '@/components/ListLayout';
+
+const PAGE_SIZE = 10;
 import { ContactLine } from '@/components/ContactSupport';
 
 /**
  * Paid jobs that have not printed.
  *
- * This is the page that costs money when nobody looks at it: every row is a
- * customer who has been charged and has nothing to show for it.
- *
- * Refunds are issued by MPRNT, not from here, so a job that has been waiting
- * long enough carries a pre-filled message to MPRNT rather than a button.
+ * Every row is a customer who has paid and has nothing to show for it, so each
+ * one says what happened and what happens next. Refunds are issued by MPRNT, not
+ * from here, so an old job carries a ready message to MPRNT rather than a button.
  */
 export default function AttentionPage() {
-  const { data, error, loading, reload } = useApi<{ count: number; jobs: AttentionRow[] }>(
-    '/attention'
-  );
+  const { data, error, loading, reload } = useApi<{ count: number; jobs: AttentionRow[] }>('/attention');
 
-  const refundCandidates = data?.jobs.filter((j) => j.refundCandidate).length ?? 0;
+  const jobs = data?.jobs ?? [];
+  const refundCandidates = jobs.filter((j) => j.refundCandidate);
+  const waitingCount = jobs.length - refundCandidates.length;
+
+  // The queue comes back whole, so the pages are cut here.
+  const [page, setPage] = React.useState(0);
+  const pages = Math.max(1, Math.ceil(jobs.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const visible = jobs.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const goTo = (next: number) => {
+    setPage(next);
+    scrollListToTop(listRef.current);
+  };
 
   return (
-    <div className="space-y-6">
+    <div className={LIST_PAGE}>
       <PageHeader
-        title="Needs attention"
-        subtitle="Jobs that were paid for but have not finished printing"
+        title="Needs you"
+        subtitle="Customers paid, but their print has not come out yet."
       />
 
-      {refundCandidates > 0 && (
-        <Card className="p-4 border-warning/40 bg-warning/5">
-          <div className="flex items-start gap-3">
-            <span
-              aria-hidden="true"
-              className="w-9 h-9 rounded-lg bg-warning/15 text-warning flex items-center justify-center flex-shrink-0"
+      {!loading && !error && (
+        refundCandidates.length > 0 ? (
+          <Callout tone="warn" title={`${plural(refundCandidates.length, 'customer')} waiting over an hour`}>
+            <p>These will not print on their own. Ask MPRNT to refund them.</p>
+            <ContactLine
+              className="mt-2"
+              subject={`Refunds for ${plural(refundCandidates.length, 'waiting job')}`}
+              body={refundCandidates
+                .map((j) => `Job ID: ${j.jobId}\nQR point: ${j.kiosk.code}\nAmount: ${currency(j.amount)}\nPaid: ${dateTime(j.createdAt)}`)
+                .join('\n\n')}
             >
-              <Icon name="clock" className="w-5 h-5" />
-            </span>
-            <div>
-              <p className="font-bold text-text">
-                {refundCandidates} {refundCandidates === 1 ? 'job has' : 'jobs have'} been waiting
-                over an hour
-              </p>
-              <p className="text-sm text-text-muted mt-0.5">
-                These are unlikely to print on their own. For a refund, contact MPRNT.
-              </p>
-            </div>
-          </div>
-        </Card>
+              Contact MPRNT and they will refund them:
+            </ContactLine>
+          </Callout>
+        ) : waitingCount > 0 ? (
+          <Callout tone="neutral" title={`${plural(waitingCount, 'paid job')} waiting for a printer`}>
+            They will print when a printer is free. Nothing for you to do yet. If one waits over an hour, it will
+            show here as a refund to ask for.
+          </Callout>
+        ) : (
+          <Callout tone="good" title="Nothing needs you">
+            Every paid job has printed.
+          </Callout>
+        )
       )}
 
-      <Card>
-        <CardHeader title={loading ? 'Loading…' : `${data?.count ?? 0} waiting`} />
+      <Card className={LIST_CARD}>
+        <CardHeader title={loading ? 'Loading…' : `${plural(jobs.length, 'job')} waiting`} />
 
         {error ? (
           <ErrorState message={error} onRetry={reload} />
         ) : loading ? (
           <SkeletonRows rows={3} />
-        ) : data && data.jobs.length > 0 ? (
-          <ul className="divide-y divide-border">
-            {data.jobs.map((job) => (
-              <li key={job.jobId} className="p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-text">
-                      {currency(job.amount)}
-                      <span className="text-text-muted font-normal"> · {job.kiosk.code}</span>
-                    </p>
-                    <p className="text-xs text-text-muted font-mono truncate mt-0.5">
-                      {job.jobId}
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <StatusPill status={job.queueStatus || job.status} />
-                    <p
-                      className={`text-xs mt-1 ${
-                        job.refundCandidate ? 'text-warning font-semibold' : 'text-text-muted'
-                      }`}
-                    >
-                      {relativeAge(job.ageSeconds)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
-                  <span>Paid {dateTime(job.createdAt)}</span>
-                  {job.retryCount > 0 && <span>{job.retryCount} retries</span>}
-                  {job.errorCode && (
-                    <span className="text-error font-medium">{job.errorCode}</span>
-                  )}
-                </div>
-
-                {job.errorMessage && (
-                  <p className="mt-1.5 text-xs text-error">{job.errorMessage}</p>
-                )}
-
-                {job.refundCandidate && (
-                  <ContactLine
-                    className="mt-3"
-                    subject={`Refund request: job ${job.jobId}`}
-                    body={`Job ID: ${job.jobId}\nQR point: ${job.kiosk.code}\nAmount: ${currency(job.amount)}\nPaid: ${dateTime(job.createdAt)}\n\nPlease refund this customer.`}
-                  >
-                    For a refund, contact MPRNT:
-                  </ContactLine>
-                )}
-              </li>
-            ))}
-          </ul>
+        ) : jobs.length > 0 ? (
+          <>
+            <div ref={listRef} className={LIST_BODY}>
+              <ul className="divide-y divide-border">
+                {visible.map((job) => (
+                  <AttentionItem key={job.jobId} job={job} />
+                ))}
+              </ul>
+            </div>
+            <Pagination
+              page={current}
+              pageSize={PAGE_SIZE}
+              total={jobs.length}
+              onChange={goTo}
+              label="Needs you pages"
+            />
+          </>
         ) : (
           <EmptyState
             title="Nothing waiting"
-            message="Every paid job has printed. This is what you want to see."
-            icon={<Icon name="check" className="w-6 h-6" />}
+            message="When a customer has paid and the print is stuck, it will show here."
+            icon={<Icon name="check" className="h-6 w-6" />}
           />
         )}
       </Card>
     </div>
+  );
+}
+
+function AttentionItem({ job }: { job: AttentionRow }) {
+  const state = jobState(job);
+  return (
+    <li className="p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base font-semibold text-text tabular">
+            {currency(job.amount)} paid at {job.kiosk.name}
+          </p>
+          <p className="mt-0.5 text-sm text-text-muted">
+            {dateTime(job.createdAt)} · Paid {relativeAge(job.ageSeconds)}
+          </p>
+        </div>
+        <StateBadge label={state.label} tone={state.tone} />
+      </div>
+
+      <p className="mt-2 text-sm text-text-muted">{state.detail}</p>
+      {job.errorMessage && <p className="mt-1 text-sm text-error">What went wrong: {job.errorMessage}</p>}
+
+      <div className="mt-3">
+        {job.refundCandidate ? (
+          <div className="rounded-xl bg-warning/5 px-3 py-2.5">
+            <p className="text-sm font-semibold text-text">Next step: ask MPRNT to refund this customer.</p>
+            <ContactLine
+              className="mt-1"
+              subject={`Refund request: job ${job.jobId}`}
+              body={`Job ID: ${job.jobId}\nQR point: ${job.kiosk.code}\nAmount: ${currency(job.amount)}\nPaid: ${dateTime(job.createdAt)}\n\nPlease refund this customer.`}
+            >
+              Contact MPRNT:
+            </ContactLine>
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">
+            Nothing to do yet. The system keeps trying. If it is still here after an hour, it will appear as a
+            refund to ask MPRNT for.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-2">
+        <TechnicalDetails>
+          <p>Job ID: {job.jobId}</p>
+          {job.errorCode && <p>Error code: {job.errorCode}</p>}
+          {job.retryCount > 0 && <p>Tried again {job.retryCount} times</p>}
+        </TechnicalDetails>
+      </div>
+    </li>
   );
 }

@@ -4,10 +4,12 @@ import React from 'react';
 import { useApi } from '@/lib/useApi';
 import { buildQuery, type AuditRow } from '@/lib/api';
 import { dateTime, titleCase } from '@/lib/format';
-import { Card, CardHeader, EmptyState, ErrorState, PageHeader, SkeletonRows, Button } from '@/components/ui';
+import { Card, CardHeader, EmptyState, ErrorState, PageHeader, SkeletonRows } from '@/components/ui';
+import { Pagination } from '@/components/Pagination';
+import { LIST_BODY, LIST_CARD, LIST_PAGE, scrollListToTop } from '@/components/ListLayout';
 import { Icon } from '@/components/Icon';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 
 type Category = 'all' | 'security';
 
@@ -53,10 +55,14 @@ export default function AuditPage() {
   );
   const actions = useApi<{ actions: string[] }>('/audit/actions');
 
-  const pages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const goTo = (next: number) => {
+    setPage(next);
+    scrollListToTop(listRef.current);
+  };
 
   return (
-    <div className="space-y-6">
+    <div className={LIST_PAGE}>
       <PageHeader
         title="Audit log"
         subtitle="Changes made by your shop's staff, and sign-in activity on their accounts"
@@ -110,7 +116,7 @@ export default function AuditPage() {
         </div>
       </div>
 
-      <Card>
+      <Card className={LIST_CARD}>
         <CardHeader title={loading ? 'Loading…' : `${data?.total ?? 0} entries`} />
 
         {error ? (
@@ -119,62 +125,39 @@ export default function AuditPage() {
           <SkeletonRows rows={6} />
         ) : data && data.entries.length > 0 ? (
           <>
-            <ul className="divide-y divide-border">
-              {data.entries.map((entry) => (
-                <li key={entry.id} className="p-4 flex items-start gap-3">
-                  <span
-                    aria-hidden="true"
-                    className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 bg-current ${toneFor(entry.action)}`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-text">{describe(entry)}</p>
+            <div ref={listRef} className={LIST_BODY}>
+              <ul className="divide-y divide-border">
+                {data.entries.map((entry) => (
+                  <li key={entry.id} className="p-4 flex items-start gap-3">
+                    <span
+                      aria-hidden="true"
+                      className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 bg-current ${toneFor(entry.action)}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-text">{describe(entry)}</p>
+                      </div>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        {entry.actor ? (
+                          <>
+                            {entry.actor.name || entry.actor.email}
+                            <span className="capitalize"> ({entry.actor.role.replace('_', ' ')})</span>
+                          </>
+                        ) : (
+                          'Unknown / system'
+                        )}
+                        {' · '}
+                        {dateTime(entry.createdAt)}
+                        {entry.ipAddress && ` · ${entry.ipAddress}`}
+                      </p>
+                      <Details entry={entry} />
                     </div>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      {entry.actor ? (
-                        <>
-                          {entry.actor.name || entry.actor.email}
-                          <span className="capitalize"> ({entry.actor.role.replace('_', ' ')})</span>
-                        </>
-                      ) : (
-                        'Unknown / system'
-                      )}
-                      {' · '}
-                      {dateTime(entry.createdAt)}
-                      {entry.ipAddress && ` · ${entry.ipAddress}`}
-                    </p>
-                    <Details entry={entry} />
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-            {pages > 1 && (
-              <nav
-                aria-label="Pagination"
-                className="flex items-center justify-between gap-3 p-4 border-t border-border"
-              >
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                >
-                  Previous
-                </Button>
-                <p className="text-sm text-text-muted tabular" aria-live="polite">
-                  Page {page + 1} of {pages}
-                </p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={page >= pages - 1}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </nav>
-            )}
+            <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={goTo} label="Audit log pages" />
           </>
         ) : (
           <EmptyState
