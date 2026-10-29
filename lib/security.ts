@@ -66,6 +66,10 @@ export function resolveProxyUrl(
  */
 const SHOP_ROUTES: ReadonlyArray<readonly [string, string]> = [
   ['GET', 'shop'],
+  // The shop's own contact, bank and UPI (owners), and its own rates (owners and managers).
+  ['PUT', 'shop/contact'],
+  ['PUT', 'shop/payout'],
+  ['PUT', 'shop/pricing'],
   ['GET', 'kiosks'],
   ['PATCH', 'kiosks/:id'],
   ['GET', 'printers'],

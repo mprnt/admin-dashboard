@@ -263,6 +263,12 @@ test('shop allowlist: case and prefix tricks do not match', () => {
 test('shop allowlist: method is case-insensitive, as HTTP clients vary', () => {
   assert.equal(isShopRoute('get', ['admin', 'shop']), true);
   assert.equal(isShopRoute('delete', ['admin', 'shop']), false);
+  // The shop writes its own details and rates, and only these.
+  assert.equal(isShopRoute('put', ['admin', 'shop', 'contact']), true);
+  assert.equal(isShopRoute('put', ['admin', 'shop', 'payout']), true);
+  assert.equal(isShopRoute('put', ['admin', 'shop', 'pricing']), true);
+  assert.equal(isShopRoute('post', ['admin', 'pricing', 'lists']), false);
+  assert.equal(isShopRoute('patch', ['admin', 'organizations', 'x', 'payout']), false);
 });
 
 // ---------------------------------------------------------------------------
